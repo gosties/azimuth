@@ -1,0 +1,42 @@
+{
+  "name": "h3-search-workspace",
+  "version": "0.6.3",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "verify:local-runtime": "node src/localCatalogs/vendor/verify.mjs",
+    "prebuild": "npm run verify:local-runtime",
+    "postinstall": "npm run verify:local-runtime",
+    "postbuild": "node src/localCatalogs/vendor/verify.mjs --emit-notices"
+  },
+  "type": "module",
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "1.33.1-dev57.0",
+    "@tanstack/react-virtual": "^3.14.26",
+    "@tmcw/togeojson": "7.1.4",
+    "@xmldom/xmldom": "0.9.12",
+    "dockview-react": "^8.8.3",
+    "gdal3.js": "2.8.1",
+    "h3-js": "4.3.0",
+    "lucide-react": "^1.70.0",
+    "mgrs": "2.1.0",
+    "ol": "^10.11.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "happy-dom": "^21.0.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  },
+  "private": true
+}

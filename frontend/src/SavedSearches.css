@@ -1,0 +1,25 @@
+.saved-searches { display: flex; flex-direction: column; gap: 8px; }
+.saved-heading { margin: 0; }
+.saved-toolbar, .saved-actions, .saved-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.saved-toolbar .button[aria-pressed=true] { border-color: var(--amber); background: var(--amber-soft); color: var(--amber); }
+.saved-list { list-style: none; padding: 0; border: 1px solid var(--line); border-radius: 6px; }
+.saved-list > li + li { border-top: 1px solid var(--line); }
+.saved-queue-list { min-height: 32px; max-height: 320px; overflow: auto; scrollbar-color: var(--strong-line) transparent; }
+.saved-queue-list label { flex-direction: row; gap: 8px; align-items: center; min-height: max(30px, var(--map-control-height)); padding: 5px 9px; cursor: pointer; }
+.saved-queue-list label:hover { background: var(--subtle); }
+.saved-queue-list label:has(input:checked) { background: var(--accent-soft); color: var(--ink); }
+.saved-queue-list label:has(input:focus-visible) { outline: 2px solid var(--amber); outline-offset: -2px; }
+.saved-queue-list input { flex-shrink: 0; }
+.saved-run { display: grid; gap: 6px; padding-block: 8px; border-top: 1px solid var(--line); }
+.saved-manage-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; }
+.saved-item-info { flex: 1 1 120px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.saved-item-info strong, .saved-queue-list span, .saved-run p, .saved-delete p { overflow-wrap: anywhere; }
+.saved-row-actions { gap: 0; }
+.saved-delete { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px; background: var(--amber-soft); color: var(--amber); border-radius: 5px; }
+.saved-delete p { flex-basis: 100%; }
+.saved-editor { display: grid; gap: 7px; border: 1px solid var(--strong-line); border-radius: 6px; padding: 9px; background: var(--subtle); }
+.saved-editor h3 { font-size: var(--body-size); }
+.saved-editor fieldset { display: grid; gap: 8px; min-width: 0; padding: 0; border: 0; margin: 0; }
+.saved-editor fieldset > .button { justify-self: start; }
+.saved-scope { border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+.saved-searches .inline-error { margin: 0; }

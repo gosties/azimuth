@@ -1,0 +1,75 @@
+[settings]
+mode = "live"
+stage_path = "/var/lib/azimuth/stage"
+log_path = "/var/lib/azimuth/logs"
+export_path = "/var/lib/azimuth/exports"
+
+# H3SEARCH_POSTGRES_DSN, H3SEARCH_S3_ACCESS_KEY and H3SEARCH_S3_SECRET_KEY
+# are supplied in the private service environment.
+catalog_uri = "http://127.0.0.1:8186"
+namespace = "h3search"
+warehouse = "s3://h3search/warehouse"
+s3_endpoint = "http://127.0.0.1:9160"
+s3_path_style = true
+s3_region = "us-east-1"
+trino_host = "127.0.0.1"
+trino_port = 8096
+trino_catalog = "iceberg"
+trino_schema = "h3search"
+
+auth_origins = ["https://search.example.org"]
+auth_cookie_secure = true
+partition_resolution = 3
+single_file_row_group_rows = 65536
+single_file_read_split_mb = 4096
+
+[connections.source]
+driver = "ODBC Driver 18 for SQL Server"
+server = "tcp:sqlserver.example.org,1433"
+database = "SpatialData"
+trusted_connection = false
+username_env = "SOURCE_SQLSERVER_USERNAME"
+password_env = "SOURCE_SQLSERVER_PASSWORD"
+encrypt = true
+trust_server_certificate = false
+login_timeout_sec = 15
+query_timeout_sec = 120
+
+# Inherited by every listed table. For a spatial column, replace the
+# latitude/longitude pair with geometry_column = "Shape".
+[dataset_defaults]
+connection_name = "source"
+source_schema = "dbo"
+object_id_column = "OBJECTID"
+latitude_column = "Latitude"
+longitude_column = "Longitude"
+source_srid = 4326
+mode = "insert"
+
+[[datasets]]
+source_table = "Locations"
+name = "Locations"
+
+# Add one [[datasets]] entry for every table to load.
+# [[datasets]]
+# source_table = "Facilities"
+# name = "Facilities"
+# mode = "cdc"
+# capture_instance = "dbo_Facilities"
+
+# A second SQL Server or database uses another named profile; each registered
+# dataset retains its own connection_name. No profile is selected in the UI.
+# [connections.secondary]
+# driver = "ODBC Driver 18 for SQL Server"
+# server = "tcp:second-sqlserver.example.org,1433"
+# database = "OtherSpatialData"
+# trusted_connection = false
+# username_env = "SECONDARY_SQLSERVER_USERNAME"
+# password_env = "SECONDARY_SQLSERVER_PASSWORD"
+# encrypt = true
+# trust_server_certificate = false
+#
+# [[datasets]]
+# connection_name = "secondary"
+# source_table = "Facilities"
+# name = "Facilities"

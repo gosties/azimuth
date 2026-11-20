@@ -1,0 +1,22 @@
+{
+  "name": "DuckDB WebAssembly runtime",
+  "duckdb_version": "1.5.4",
+  "duckdb_wasm_npm_version": "1.33.1-dev57.0",
+  "platform": "wasm_eh",
+  "source": "https://github.com/duckdb/duckdb-wasm/tree/ef8a4f8912b6e7f62bc0cc490145ebd391b79e1f",
+  "duckdb_wasm_commit": "ef8a4f8912b6e7f62bc0cc490145ebd391b79e1f",
+  "duckdb_commit": "08e34c447bae34eaee3723cac61f2878b6bdf787",
+  "integrity": "Pinned npm registry SHA512 integrity in frontend/package-lock.json",
+  "files": [
+    {
+      "filename": "duckdb-eh.wasm",
+      "bytes": 35913747,
+      "sha256": "3abdec74989dcc54d2f2ea5621f611f3c45db1e7dff2f408476014d82beb2029"
+    },
+    {
+      "filename": "duckdb-browser-eh.worker.js",
+      "bytes": 773223,
+      "sha256": "fa889e6068c40426dea67c08cf16ce0cad7404eae94f6a2522adcabb5898eb93"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+**
+!requirements.txt
+!constraints.txt
+!requirements-api.lock
+!requirements-build.lock
+!pyproject.toml
+!src/
+!src/h3search/
+!src/h3search/**
+**/__pycache__/
+**/*.py[cod]

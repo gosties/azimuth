@@ -1,0 +1,14 @@
+{
+  "rootGroups": [{
+    "name": "application", "softMemoryLimit": "90%", "hardConcurrencyLimit": 8,
+    "maxQueued": 32, "schedulingPolicy": "weighted",
+    "subGroups": [
+      {"name":"interactive","softMemoryLimit":"75%","hardConcurrencyLimit":6,"maxQueued":24,"schedulingWeight":10},
+      {"name":"maintenance","softMemoryLimit":"25%","hardConcurrencyLimit":1,"maxQueued":4,"schedulingWeight":1}
+    ]
+  }],
+  "selectors": [
+    {"source":"h3search-maintenance","group":"application.maintenance"},
+    {"group":"application.interactive"}
+  ]
+}

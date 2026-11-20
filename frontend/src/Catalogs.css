@@ -1,0 +1,78 @@
+.catalog-selection { display: grid; gap: 9px; min-width: 0; }
+.catalog-selection .catalog-parent-check, .catalog-selection .catalog-dataset-check { display: flex; flex-direction: row; align-items: center; gap: 8px; min-width: 0; width: auto; }
+.catalog-selection input[type=checkbox] { width: auto; min-width: 15px; height: 15px; margin: 0; flex: 0 0 auto; accent-color: var(--amber); }
+.catalog-source { border: 1px solid var(--line); border-radius: 5px; padding: 10px; display: grid; gap: 7px; }
+.catalog-source-heading { display: flex; justify-content: space-between; gap: 8px; }
+.catalog-source-heading .catalog-parent-check { font-weight: 650; }
+.catalog-kind { font-size: 10px; color: var(--amber); background: var(--amber-soft); padding: 2px 5px; border-radius: 3px; align-self: start; }
+.catalog-tree-rows { list-style: none; padding: 0 0 0 12px; display: grid; gap: 8px; }
+.catalog-dataset-check span { overflow-wrap: anywhere; }
+.catalog-dataset-info { display: grid; gap: 4px; margin: 4px 0 0 23px; }
+.local-catalog-manager { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; display: grid; gap: 10px; }
+.local-catalog-manager h3 { font-size: inherit; }
+.local-catalog-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.local-catalog-manager form { display: grid; gap: 9px; }
+.local-catalog-manager input[type=file] { max-width: 100%; font-size: var(--detail-size); }
+.local-catalog-list { list-style: none; padding: 0; display: grid; gap: 8px; }
+.local-catalog-list li { display: grid; gap: 5px; border: 1px solid var(--line); border-radius: 5px; padding: 9px; }
+.local-remove-confirm { border-left: 2px solid var(--amber); padding-left: 8px; display: grid; gap: 7px; }
+
+.catalog-selection { align-content: start; }
+.catalog-source { padding: 6px; gap: 4px; }
+.catalog-source-heading { align-items: center; gap: 5px; }
+.catalog-source-heading .catalog-parent-check { flex: 1; }
+.catalog-source-heading .catalog-kind { white-space: nowrap; align-self: center; }
+.catalog-expand { width: 24px; height: 24px; min-width: 24px; flex: 0 0 auto; }
+.catalog-tree-rows { gap: 1px; margin: 0; padding-left: 7px; }
+.catalog-dataset-row { display: flex; align-items: center; gap: 4px; min-height: 28px; }
+.catalog-dataset-row .catalog-dataset-check { flex: 1; }
+.catalog-dataset-info { padding: 3px 0 7px; }
+.catalog-source-description { font-size: var(--detail-size); margin: 0; }
+.catalog-actions { flex-wrap: wrap; justify-content: flex-end; }
+.catalog-add-local { min-height: 28px; padding: 3px 6px; gap: 3px; white-space: nowrap; }
+.catalog-browse .section-heading { flex-wrap: wrap; }
+.catalog-browse .section-heading > div:first-child { flex: 1; min-width: 140px; }
+.local-catalog-overlay { position: fixed; inset: 0; z-index: 1100; background: #0008; display: grid; place-items: center; padding: 16px; }
+.local-catalog-dialog { background: var(--surface); color: var(--ink); border: 1px solid var(--strong-line); border-radius: 8px; box-shadow: var(--shadow); width: min(720px, 100%); max-height: min(850px, calc(100dvh - 32px)); display: flex; flex-direction: column; overflow: hidden; }
+.local-dialog-heading { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; flex-shrink: 0; }
+.local-dialog-heading h2 { margin: 0; font-size: 17px; }
+.local-dialog-tabs { display: flex; gap: 6px; padding: 6px 16px 10px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.local-catalog-dialog .local-catalog-manager { overflow: auto; min-height: 0; border: 0; margin: 0; padding: 14px 16px; }
+.local-catalog-manager > [hidden] { display: none; }
+.local-catalog-manager label { display: grid; gap: 4px; }
+.local-catalog-manager > div:not([hidden]) { display: grid; gap: 9px; }
+.local-format-help { display: grid; gap: 12px; }
+.local-format-help p { margin: 0; line-height: 1.5; }
+.local-workflow { margin: 0; padding-left: 24px; display: grid; gap: 4px; }
+.local-format-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 9px; }
+.local-format-grid article { background: var(--subtle); border: 1px solid var(--line); border-radius: 5px; padding: 10px; }
+.local-format-grid h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 7px; }
+.local-format-grid p { font-size: var(--detail-size); }
+.local-gis-layers { display: grid; gap: 7px; }
+.local-gis-layer { border: 1px solid var(--line); border-radius: 4px; padding: 7px; }
+@media (max-width: 480px) { .local-catalog-overlay { padding: 8px; } .local-catalog-dialog { max-height: calc(100dvh - 16px); } }
+
+.local-gis-layer label { display: flex; flex-direction: row; align-items: center; gap: 7px; }
+.local-gis-layer input[type=radio] { width: auto; margin: 0; flex: 0 0 auto; accent-color: var(--amber); }
+
+.results-panel .time-filter-empty { padding: 8px 12px; margin: 0; border-bottom: 1px solid var(--line); }
+.local-gis-import { display: grid; gap: 10px; min-width: 0; }
+.local-gis-import h3, .local-gis-import p { margin: 0; }
+.local-destination, .local-import-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.local-dropzone { display: grid; justify-items: center; gap: 9px; border: 1px dashed var(--strong-line); border-radius: 6px; background: var(--subtle); padding: 18px 12px; text-align: center; }
+.local-dropzone.is-dragging { border-color: var(--amber); background: var(--amber-soft); }
+.local-dropzone input[hidden] { display: none; }
+.local-source-toolbar, .local-source-heading { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.local-source-toolbar > strong, .local-source-heading > strong { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.local-source-queue { display: grid; gap: 9px; }
+.local-source-command { display: grid; gap: 8px; position: sticky; top: -14px; z-index: 2; background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 0; }
+.local-dialog-status { flex: 0 0 auto; display: grid; gap: 6px; padding: 10px 16px; border-top: 1px solid var(--line); max-height: 25dvh; overflow: auto; background: var(--surface); }
+.local-dialog-status p { margin: 0; }
+.local-dialog-status > button { justify-self: start; }
+.local-source-card { display: grid; gap: 7px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 5px; }
+.local-source-card .local-gis-layer { display: grid; gap: 7px; background: var(--subtle); }
+.local-gis-layer input[type=checkbox] { width: auto; min-width: 15px; margin: 0; flex: 0 0 auto; accent-color: var(--amber); }
+.local-gis-layer > label:has(select) { display: grid; align-items: start; }
+.local-import-modes article { display: grid; align-content: start; gap: 8px; border: 1px solid var(--line); border-radius: 5px; padding: 11px; }
+.local-import-modes article h3, .local-import-modes article p { margin: 0; }
+@media (max-width: 520px) { .local-destination, .local-import-modes { grid-template-columns: 1fr; } }

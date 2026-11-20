@@ -1,0 +1,49 @@
+{
+  "name": "gdal3.js",
+  "version": "2.8.1",
+  "distribution": "npm:gdal3.js@2.8.1",
+  "integrity": "Pinned by frontend/package-lock.json",
+  "license": "LGPL-2.1-or-later",
+  "source": "https://github.com/bugra9/gdal3.js/tree/v2.8.1",
+  "source_archive": "https://github.com/bugra9/gdal3.js/archive/refs/tags/v2.8.1.tar.gz",
+  "modifications": "None. The original npm browser runtime, WebAssembly and data assets are bundled locally.",
+  "native_components": [
+    {
+      "name": "GDAL",
+      "version": "3.8.4",
+      "source": "https://github.com/OSGeo/gdal/tree/v3.8.4"
+    },
+    {
+      "name": "PROJ",
+      "version": "9.3.1",
+      "source": "https://github.com/OSGeo/PROJ/tree/9.3.1"
+    },
+    {
+      "name": "GEOS",
+      "version": "3.12.1",
+      "source": "https://github.com/libgeos/geos/tree/3.12.1"
+    },
+    {
+      "name": "SpatiaLite",
+      "version": "5.1.0",
+      "source": "https://www.gaia-gis.it/fossil/libspatialite"
+    },
+    {
+      "name": "SQLite",
+      "version": "3.45.1",
+      "source": "https://sqlite.org/2024/sqlite-src-3450100.zip"
+    },
+    {
+      "name": "TIFF",
+      "version": "4.6.0",
+      "source": "https://gitlab.com/libtiff/libtiff/-/tree/v4.6.0"
+    },
+    {
+      "name": "Expat",
+      "version": "2.6.0",
+      "source": "https://github.com/libexpat/libexpat/tree/R_2_6_0"
+    }
+  ],
+  "native_notices": "The distribution includes gdal3.js.NOTICES.md with all native dependency license references published by the package, and the full gdal3.js LGPL license.",
+  "runtime_driver_policy": "Only the selected source driver and GeoJSON output driver are registered. The registry is checked before opening input files."
+}

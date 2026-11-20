@@ -1,0 +1,10 @@
+.export-selection { min-width: 0; margin: 0; padding: 8px; border: 1px solid var(--line); border-radius: 5px; }
+.export-selection legend, .export-selection strong { font-size: var(--detail-size); color: var(--ink); }
+.export-selection-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+.export-selection-actions .button { min-height: 26px; padding: 3px 6px; }
+.export-selection p { margin: 5px 0; }
+.export-selection-list { max-height: min(260px, 35vh); overflow: auto; overscroll-behavior: contain; padding: 5px 2px; }
+.export-selection-groups { padding-bottom: 7px; margin-bottom: 7px; border-bottom: 1px solid var(--line); }
+.export-choice { display: flex; flex-direction: row; align-items: flex-start; gap: 7px; padding: 4px 0; color: var(--ink); font-weight: 400; overflow-wrap: anywhere; }
+.export-choice input { flex-shrink: 0; margin-top: 2px; accent-color: var(--accent); }
+.export-choice span { min-width: 0; }

@@ -1,0 +1,48 @@
+.administration-panel { height: 100%; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.admin-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 12px 14px 8px; }
+.admin-header h2 { font-size: 17px; }
+.admin-tabs { display: flex; flex-shrink: 0; gap: 3px; padding: 0 10px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.admin-tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 9px 10px; color: var(--muted); }
+.admin-tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--amber); font-weight: 700; background: var(--amber-soft); }
+.admin-content { flex: 1; min-height: 0; overflow: hidden; }
+.release-notes { height: 100%; overflow-y: auto; }
+.release-notes article { padding: 12px 0; max-width: 70ch; border-bottom: 1px solid var(--line); }
+.release-notes h3 { margin: 4px 0; }
+.release-notes ul { margin: 4px 0; padding-left: 20px; }
+.release-meta { display: flex; gap: 12px; align-items: baseline; color: var(--muted); }
+.release-meta strong { color: var(--ink); }
+.admin-notice { display: flex; align-items: center; gap: 8px; padding: 7px 12px; }
+.admin-infrastructure { height: 100%; display: flex; flex-direction: column; gap: 10px; padding: var(--panel-padding); overflow: auto; }
+.infrastructure-toolbar { display: grid; flex-shrink: 0; gap: 7px; }
+.infrastructure-toolbar label { max-width: 650px; }
+.admin-infrastructure iframe { flex: 1; display: block; width: 100%; min-height: 12rem; border: 1px solid var(--line); border-radius: 5px; }
+.admin-table-scroll { overflow: auto; border: 1px solid var(--line); border-radius: 5px; margin-top: 7px; }
+.admin-table { border-collapse: collapse; width: 100%; font-size: var(--detail-size); text-align: left; }
+.admin-table th, .admin-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; min-width: 100px; max-width: 290px; overflow-wrap: anywhere; }
+.admin-table thead th { background: var(--subtle); position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+.admin-table th:last-child, .admin-table td:last-child { min-width: 55px; }
+.admin-edit-row td { background: var(--subtle); }
+.admin-edit-row .catalog-form { max-width: 760px; }
+.category-choices { border: 1px solid var(--line); border-radius: 5px; margin: 0; padding: 8px; display: flex; gap: 8px 15px; flex-wrap: wrap; }
+.category-choices legend { color: var(--muted); font-size: var(--detail-size); font-weight: 650; }
+.category-choices label { flex-direction: row; align-items: center; gap: 5px; }
+.admin-category-form { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.admin-category-form label { flex: 1; min-width: 150px; }
+.admin-category-list { list-style: none; padding: 0; }
+.admin-category-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.admin-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.admin-confirm { border: 1px solid var(--strong-line); padding: 12px; margin-top: 12px; border-radius: 5px; background: var(--amber-soft); display: grid; gap: 10px; }
+.admin-maps { display: flex; flex-direction: column; gap: 12px; }
+.admin-maps > * { flex-shrink: 0; }
+.admin-maps .section-heading { margin: 0; }
+.admin-map-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-map-list button[aria-pressed=true] { background: var(--amber-soft); border-color: var(--amber); }
+.admin-map-editor { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 5px; margin: 0; padding: 12px; min-width: 0; }
+.admin-map-editor legend { font-weight: 700; padding: 0 4px; }
+.admin-map-editor details { display: grid; gap: 7px; }
+.admin-map-editor details > p { margin: 7px 0; }
+.admin-map-editor textarea { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.admin-map-editor > button { justify-self: start; }
+.catalog-admin .catalog-filters { margin-top: 10px; }
+.catalog-category-filter { grid-column: 1 / -1; }
+@media (max-width: 500px) { .admin-tabs button { flex: 1; padding-inline: 6px; } .admin-map-editor .field-row { grid-template-columns: 1fr; } }

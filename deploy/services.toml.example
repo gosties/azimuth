@@ -1,0 +1,59 @@
+# Container equivalent of etl.toml.example. Mount as /app/config/settings.toml.
+# Control DB and object-store credentials stay in private service environments.
+[settings]
+mode = "live"
+stage_path = "/app/runtime/stage"
+log_path = "/app/runtime/logs"
+export_path = "/app/runtime/exports"
+catalog_uri = "http://catalog:8181"
+namespace = "h3search"
+warehouse = "s3://h3search/warehouse"
+s3_endpoint = "http://object-store:9000"
+s3_path_style = true
+s3_region = "us-east-1"
+trino_host = "trino"
+trino_port = 8080
+trino_catalog = "iceberg"
+trino_schema = "h3search"
+
+[connections.source]
+driver = "ODBC Driver 18 for SQL Server"
+server = "tcp:sqlserver.example.org,1433"
+database = "SpatialData"
+trusted_connection = false
+username_env = "SOURCE_SQLSERVER_USERNAME"
+password_env = "SOURCE_SQLSERVER_PASSWORD"
+encrypt = true
+trust_server_certificate = false
+login_timeout_sec = 15
+query_timeout_sec = 120
+
+[connections.secondary]
+driver = "ODBC Driver 18 for SQL Server"
+server = "tcp:second-sqlserver.example.org,1433"
+database = "OtherSpatialData"
+trusted_connection = false
+username_env = "SECONDARY_SQLSERVER_USERNAME"
+password_env = "SECONDARY_SQLSERVER_PASSWORD"
+encrypt = true
+trust_server_certificate = false
+login_timeout_sec = 15
+query_timeout_sec = 120
+
+[dataset_defaults]
+connection_name = "source"
+source_schema = "dbo"
+object_id_column = "OBJECTID"
+latitude_column = "Latitude"
+longitude_column = "Longitude"
+source_srid = 4326
+mode = "insert"
+
+[[datasets]]
+source_table = "Locations"
+name = "Locations"
+
+[[datasets]]
+connection_name = "secondary"
+source_table = "Facilities"
+name = "Facilities"

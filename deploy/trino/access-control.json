@@ -1,0 +1,17 @@
+{
+  "catalogs": [
+    {"catalog": "iceberg", "allow": "read-only"},
+    {"catalog": ".*", "allow": "none"}
+  ],
+  "schemas": [{"owner": false}],
+  "tables": [{"catalog": "iceberg", "privileges": ["SELECT"]}],
+  "functions": [],
+  "procedures": [],
+  "queries": [{"allow": ["execute"]}],
+  "system_session_properties": [{"property": "query_max_run_time", "allow": true}],
+  "catalog_session_properties": [
+    {"catalog": "iceberg", "property": "statistics_enabled|parquet_small_file_threshold", "allow": true}
+  ],
+  "system_information": [],
+  "impersonation": []
+}

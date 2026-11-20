@@ -1,0 +1,38 @@
+# Optional server-side SQL profiles for exports and an explicitly invoked ETL CLI.
+# Combine with compose.lake.yml and compose.web.yml; prepare private files first.
+services:
+  api:
+    environment:
+      H3SEARCH_CONFIG: /app/config/settings.toml
+      # Unset a legacy api.env stub instead of replacing the TOML profile map.
+      # Also unset H3SEARCH_CONNECTIONS in the shell that invokes Compose.
+      H3SEARCH_CONNECTIONS:
+    volumes:
+      - ./private/services.toml:/app/config/settings.toml:ro,z
+  export-worker:
+    env_file:
+      - ./private/api.env
+      - ./private/sql.env
+    environment:
+      H3SEARCH_CONFIG: /app/config/settings.toml
+      H3SEARCH_CONNECTIONS:
+    volumes:
+      - ./private/services.toml:/app/config/settings.toml:ro,z
+  etl:
+    profiles: [etl]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    entrypoint: [h3search]
+    command: [--help]
+    env_file:
+      - ./private/api.env
+      - ./private/sql.env
+    environment:
+      H3SEARCH_CONFIG: /app/config/settings.toml
+      H3SEARCH_CONNECTIONS:
+    volumes:
+      - ./private/services.toml:/app/config/settings.toml:ro,z
+      - api-runtime:/app/runtime
+    mem_limit: ${ETL_MEMORY_LIMIT:-4g}
+    cpus: ${ETL_CPU_LIMIT:-4}

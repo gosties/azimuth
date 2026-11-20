@@ -1,0 +1,179 @@
+# Copy this file for private settings and pass its path with --config or H3SEARCH_CONFIG.
+# H3SEARCH_<FIELD> environment variables override corresponding TOML values.
+
+[settings]
+primary_catalog_name = "Primary catalog"
+primary_catalog_description = "Managed shared datasets"
+mode = "local"                        # local uses SQLite and Parquet fixtures; live uses PostgreSQL and Iceberg
+state_path = "runtime/control.sqlite"  # local registry database
+lake_path = "runtime/lake"             # local immutable Parquet files and snapshot manifests
+stage_path = "runtime/stage"           # durable batch spool; keep the same path across ETL restarts
+log_path = "runtime/logs"
+log_level = "INFO"
+log_max_mb = 20                       # MiB per log file
+log_backups = 5                       # number of rotated logs to retain
+
+# Live registry and Iceberg. Supply credentials through the private environment.
+# postgres_dsn = ""                    # H3SEARCH_POSTGRES_DSN
+catalog_name = "h3search"
+# catalog_uri = ""                     # HTTP(S) Iceberg REST endpoint
+# catalog_token = ""                   # H3SEARCH_CATALOG_TOKEN, if required
+# catalog_ca_bundle = ""               # path to private REST CA certificate bundle
+namespace = "h3search"
+# warehouse = ""                       # s3://bucket/owned-prefix
+# s3_endpoint = ""                     # leave empty for AWS defaults
+# s3_access_key = ""                   # H3SEARCH_S3_ACCESS_KEY
+# s3_secret_key = ""                   # H3SEARCH_S3_SECRET_KEY
+s3_region = "us-east-1"
+# s3_ca_bundle = ""                    # path to private S3 CA certificate bundle
+s3_path_style = true
+
+# Live search via Trino. Its Iceberg catalog must use the same REST warehouse.
+trino_host = "localhost"
+trino_port = 8080
+trino_user = "h3search"
+# trino_password = ""                  # H3SEARCH_TRINO_PASSWORD
+trino_catalog = "iceberg"
+trino_schema = "h3search"              # use the same namespace as ETL
+trino_scheme = "http"
+# trino_ca_bundle = ""                 # path to private Trino CA certificate bundle
+trino_statistics_enabled = true       # use Iceberg table statistics to plan queries on API connections
+trino_parquet_small_file_threshold_bytes = 65536    # read smaller Parquet files in full (0 disables)
+pool_size = 4                         # maximum pooled search connections
+pool_wait_sec = 5.0                    # wait for an available search connection
+query_timeout_sec = 60.0               # query timeout in seconds
+session_ttl_sec = 3600
+session_cleanup_interval_sec = 60
+session_cleanup_batch_size = 1000
+auth_session_ttl_sec = 28800
+auth_origins = []                      # exact browser origins, for example ["https://azimuth.example"]
+auth_cookie_secure = true             # set false only for an HTTP service
+max_radius_m = 20015087.0              # meters
+max_search_centers = 5000             # uploaded or explicit centers sharing one radius
+max_search_candidate_pairs = 50000   # center/H3 associations and fallback bounds per query
+multi_center_join_resolution = 7     # finer direct H3 equijoin for tiny circles; 0 disables, maximum 9
+multi_center_fine_max_radius_m = 1000.0 # fine-join radius ceiling in meters; cannot exceed 1000
+max_search_query_bytes = 750000      # conservative SQL, bindings, and escaping budget
+max_temporal_datasets = 32           # designated datasets per date-filtered search
+max_saved_searches = 200             # saved definitions per account
+max_saved_search_request_bytes = 524288 # HTTP request body limit for saved search changes
+max_saved_search_bytes_per_account = 16777216 # total serialized definition bytes per account
+max_csv_bytes = 1048576              # decoded UTF-8 CSV; proxy body limit must allow 6x plus 65536 bytes
+max_csv_rows = 5000
+max_csv_columns = 256
+max_csv_cell_chars = 16384
+max_map_points = 100000               # combined viewport point ceiling; initial display requests 3000
+map_known_count_min_rows = 1000000     # reuse frozen counts for fully visible circles at this size; 0 disables
+wide_value_preview_chars = 2048
+wide_response_budget_bytes = 8388608
+
+# Complete source-record exports run independently from interactive searches.
+export_path = "runtime/exports"       # persistent local job database and download spool; one API instance
+export_workers = 1                    # separate export connections, maximum 4
+export_max_jobs = 32                  # queued, running and retained exports combined
+export_timeout_sec = 3600             # independent watchdog interrupts blocked export queries
+export_ttl_sec = 14400                # completed download retention; queued lifetime also includes timeout
+export_cleanup_interval_sec = 1       # retry file cleanup independently of active exports
+export_metadata_pool_size = 4         # bounded PostgreSQL metadata connections per process, 1..16
+export_csv_compresslevel = 1          # ZIP compression 0..9; 1 favors speed, 6 favors smaller files
+export_batch_rows = 16                # full-width rows fetched per batch
+export_sql_batch_rows = 512           # bound OBJECTIDs per SQL Server query, 1..2000
+export_row_budget_bytes = 8388608      # reject oversized records before materializing source values
+export_memory_mb = 256                # total DuckDB export connection memory budget, MiB
+export_file_max_mb = 8192              # maximum artifact size, MiB
+export_disk_quota_mb = 32768           # combined local export spool budget, MiB
+export_disk_reserve_mb = 1024          # minimum free disk space, MiB
+max_csv_export_rows = 10000000
+max_kml_export_rows = 50000
+max_json_export_rows = 5000000
+max_gpkg_export_rows = 5000000
+
+# ETL stages one batch at a time. Wide rows may reduce the number read per batch.
+# Insert-mode keys must become visible in increasing order. Use CDC if a transaction
+# can make a lower ID visible after a higher ID has been checkpointed.
+fetch_batch_rows = 100000
+# Optional .[native-etl] reader; used only with --initial-only --source-frozen.
+initial_source_reader = "pyodbc"
+initial_native_buffer_mb = 64
+initial_native_text_units = 4096
+initial_native_binary_bytes = 65536
+prepared_read_batch_rows = 8192
+cdc_batch_rows = 4096                  # Maximum ordered CDC operations per batch; range 1-100000
+transform_workers = 4
+batch_max_mb = 64                      # MiB of estimated input per batch and upper compaction input budget
+memory_budget_mb = 1024                # MiB RSS guard checked at batch boundaries
+partition_resolution = 3              # direct H3 resolution for search identity partitions
+wide_bucket_count = 16                # OBJECTID buckets per wide table
+parquet_row_group_rows = 4096
+target_file_mb = 128                   # Iceberg file target based on uncompressed Arrow bytes
+single_file_read_split_mb = 4096       # comparison Iceberg scan target in MiB, 1 to 65536
+single_file_row_group_rows = 65536     # comparison Parquet rows per group, 1 to 1048576
+poll_interval_sec = 600
+cdc_capture_timeout_sec = 300          # wait per invocation for capture to cross initial scan marker
+
+# Copy-on-write CDC loads affected existing Parquet files individually.
+# Keep file and batch sizing conservative for the available ETL memory.
+maintenance_timezone = "America/New_York"
+maintenance_start = "02:00"            # inclusive local time, HH:MM
+maintenance_end = "05:00"              # exclusive local time, HH:MM; may span midnight
+maintenance_budget_sec = 3600          # cumulative unit time allowed during one window
+maintenance_max_files = 8             # maximum input files per partition group
+initial_search_grouping = false       # group narrow search rows during a first live load
+initial_search_sort_memory_mb = 256   # DuckDB memory limit for the narrow sort
+initial_search_sort_temp_mb = 16384    # maximum DuckDB temporary spill space
+initial_search_sort_threads = 4       # sort threads, 1 to 4
+initial_search_sort_row_group_rows = 65536 # staging row groups
+initial_search_sort_timeout_sec = 3600
+prepared_read_row_groups = 8          # maximum row groups per prepared-reader iterator
+manifest_regroup_max_files = 100000    # maximum manifest inventory entries examined per search regroup
+manifest_regroup_max_entries = 1024    # maximum data file entries per replacement manifest
+manifest_regroup_budget_sec = 60       # time budget for one search manifest regroup
+snapshot_retention_days = 7            # active session snapshots are pinned regardless of age
+
+# Configure a SQL Server connection. Dataset registration uses the profile name.
+# [connections.source]
+# odbc_env = "SOURCE_SQLSERVER_ODBC"    # complete ODBC connection string from a private environment variable
+# login_timeout_sec = 15
+# query_timeout_sec = 60
+
+# Shared mapping for tables selected with `h3search register-configured`.
+# Define exactly one of geometry_column or the latitude/longitude pair.
+# [dataset_defaults]
+# connection_name = "source"
+# source_schema = "dbo"
+# object_id_column = "OBJECTID"
+# latitude_column = "Latitude"
+# longitude_column = "Longitude"
+# mode = "insert"
+#
+# [[datasets]]
+# source_table = "Locations"
+# name = "Locations"
+#
+# [[datasets]]
+# source_table = "Facilities"
+# name = "Facilities"
+# mode = "cdc"
+# capture_instance = "dbo_Facilities"
+
+# A structured profile can use Windows authentication or a password reference.
+# [connections.source]
+# driver = "ODBC Driver 18 for SQL Server"
+# server = "sqlserver"
+# database = "source"
+# trusted_connection = true
+# username_env = "SOURCE_SQLSERVER_USERNAME"  # for SQL authentication, set trusted_connection=false
+# password_env = "SOURCE_SQLSERVER_PASSWORD"
+# encrypt = true
+# trust_server_certificate = false
+# login_timeout_sec = 15
+# query_timeout_sec = 60
+
+# Optional named basemap. Without maps, search and point rendering remain available.
+# [[maps]]
+# id = "base"
+# name = "Basemap"
+# type = "xyz"
+# url = "https://maps.example.org/tiles/{z}/{x}/{y}.png"
+# [maps.options]
+# attributions = "Map data provider"

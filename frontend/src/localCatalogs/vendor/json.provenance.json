@@ -1,0 +1,13 @@
+{
+  "name": "DuckDB JSON WebAssembly extension",
+  "duckdb_version": "1.5.4",
+  "duckdb_wasm_npm_version": "1.33.1-dev57.0",
+  "platform": "wasm_eh",
+  "filename": "json.duckdb_extension.wasm",
+  "source": "https://extensions.duckdb.org/v1.5.4/wasm_eh/json.duckdb_extension.wasm",
+  "sha256": "993b19f7929cc305b2529c548f2842e8e7a5b112d1c88f31c84798b51901ca16",
+  "bytes": 821413,
+  "license": "MIT",
+  "license_source": "https://github.com/duckdb/duckdb/blob/v1.5.4/LICENSE",
+  "signature": "Official DuckDB signed extension; runtime signature verification remains enabled."
+}

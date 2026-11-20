@@ -1,0 +1,13 @@
+connector.name=iceberg
+iceberg.catalog.type=rest
+iceberg.security=READ_ONLY
+iceberg.rest-catalog.uri=http://catalog:8181
+fs.native-s3.enabled=true
+s3.endpoint=http://object-store:9000
+s3.region=us-east-1
+s3.path-style-access=true
+s3.aws-access-key=REPLACE_WITH_ACCESS_KEY
+s3.aws-secret-key=REPLACE_WITH_SECRET
+parquet.max-merge-distance=64kB
+parquet.small-file-threshold=64kB
+fs.cache.enabled=true

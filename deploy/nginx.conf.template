@@ -1,0 +1,53 @@
+log_format safe_request '$remote_addr $request_method $uri $status $body_bytes_sent $request_time';
+geo $realip_remote_addr $azimuth_trusted_connector {
+    default 0;
+    ${AZIMUTH_TRUSTED_TUNNEL_IP} 1;
+    ${AZIMUTH_TRUSTED_LOOPBACK_IP} 1;
+}
+map "$azimuth_trusted_connector:$http_x_forwarded_proto" $azimuth_forwarded_proto {
+    default $scheme;
+    "1:https" https;
+}
+map $azimuth_forwarded_proto $azimuth_hsts {
+    default "";
+    https "max-age=31536000";
+}
+map $uri $azimuth_content_security_policy {
+    default "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: ${AZIMUTH_MAP_SOURCES}; connect-src 'self' blob: ${AZIMUTH_MAP_SOURCES}; worker-src 'self' blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+    ~^/api/admin/infrastructure/document$ "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'";
+}
+map $uri $azimuth_frame_options {
+    default DENY;
+    ~^/api/admin/infrastructure/document$ SAMEORIGIN;
+}
+server {
+    listen 80;
+    server_name _;
+    set_real_ip_from ${AZIMUTH_TRUSTED_TUNNEL_IP};
+    set_real_ip_from ${AZIMUTH_TRUSTED_LOOPBACK_IP};
+    real_ip_header CF-Connecting-IP;
+    access_log /var/log/nginx/access.log safe_request;
+    root /usr/share/nginx/html;
+    index index.html;
+    client_max_body_size 10m;
+    gzip on;
+    gzip_vary on;
+    gzip_types text/css application/javascript;
+    add_header Content-Security-Policy $azimuth_content_security_policy always;
+    add_header X-Frame-Options $azimuth_frame_options always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self), payment=(), usb=()" always;
+    add_header Strict-Transport-Security $azimuth_hsts always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    location /api/ {
+        proxy_pass http://api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $azimuth_forwarded_proto;
+        proxy_read_timeout 180s;
+        proxy_buffering off;
+    }
+    location /assets/ { expires 1y; }
+    location / { try_files $uri $uri/ /index.html; }
+}

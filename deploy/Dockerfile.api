@@ -1,0 +1,29 @@
+FROM python:3.12.16-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS build
+WORKDIR /build
+COPY requirements-build.lock ./
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements-build.lock
+RUN python -c "import urllib.request; urllib.request.urlretrieve('https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb', '/tmp/packages-microsoft-prod.deb')" \
+    && echo "8434dcb8c346dc95fbd63dbece056c343704590b58b6a5c323d39acf52bf0b48  /tmp/packages-microsoft-prod.deb" | sha256sum -c -
+COPY requirements.txt pyproject.toml ./
+COPY src ./src
+RUN python -m pip wheel --no-cache-dir --no-deps --no-build-isolation --wheel-dir /wheels .
+
+FROM python:3.12.16-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY --from=build /tmp/packages-microsoft-prod.deb /tmp/packages-microsoft-prod.deb
+RUN dpkg -i /tmp/packages-microsoft-prod.deb \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18=18.7.1.1-1 unixodbc libgssapi-krb5-2 \
+    && apt-get purge -y packages-microsoft-prod \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages-microsoft-prod.deb
+COPY requirements.txt constraints.txt requirements-api.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements-api.lock
+COPY --from=build /wheels /wheels
+RUN pip install --no-cache-dir --no-deps /wheels/*.whl && pip check \
+    && python -m pip uninstall -y pip && rm -rf /wheels \
+    && useradd --create-home --uid 10001 app && mkdir -p /app/runtime && chown -R app:app /app/runtime
+RUN python -c "from h3search.api import create_app"
+USER app
+EXPOSE 8000
+CMD ["uvicorn", "h3search.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--no-access-log"]
