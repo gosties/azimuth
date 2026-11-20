@@ -109,7 +109,7 @@ export const densityPalettes = {
   tropical: { label: 'Tropical', colors: ['#63ffe5', '#22cfed', '#1099ec', '#1365dc', '#16368f'] },
   electric: { label: 'Electric', colors: ['#e3c6ff', '#c28aff', '#a44af4', '#7c20c3', '#4c0879'] },
   lime: { label: 'Lime', colors: ['#d4ff35', '#9ce72b', '#45bf54', '#0c937b', '#00685e'] },
-  ember: { label: 'Ember', colors: ['#ffffff', '#dfab80', '#bf5700', '#874d1d', '#333f48'] },
+  ember: { label: 'Ember', colors: ['#ffffff', '#ffe0bf', '#ffb77b', '#e9853f', '#bf5700'] },
   gray: { label: 'Gray', colors: ['#efeeeb', '#cfcdc8', '#a4a19a', '#746f66', '#474239'] },
 } as const
 export type DensityPalette = keyof typeof densityPalettes
