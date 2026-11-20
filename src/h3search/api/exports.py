@@ -803,27 +803,44 @@ def _purge_dataset_exports(settings, registry, dataset_id, *, expected_spool_id,
 
 def register_exports(router: APIRouter, read_session):
     """Register APIs against the export manager created during application startup."""
+    def community(request):
+        from h3search.community import Community
+        return Community(request.app.state.exports.registry)
+
+    def all_notifications(request):
+        exported = request.app.state.exports.notifications(request.state.user["id"])
+        feedback = community(request).notifications(request.state.auth_token)
+        return {"items": sorted(exported["items"] + feedback["items"], key=lambda item: (item["created"], item["id"]), reverse=True)[:200],
+                "unread_count": exported["unread_count"] + feedback["unread_count"]}
+
+    def read_one(request, identifier):
+        if not community(request).notification_action(request.state.auth_token, "read", identifier):
+            request.app.state.exports.read_notification(identifier, request.state.user["id"])
+
     @router.get("/notifications")
     async def notifications(request: Request):
-        return await asyncio.to_thread(request.app.state.exports.notifications, request.state.user["id"])
+        return await asyncio.to_thread(all_notifications, request)
 
     @router.post("/notifications/{notification_id}/read", status_code=204)
     async def read_notification(request: Request, notification_id: UUID, body: Input):
-        await asyncio.to_thread(request.app.state.exports.read_notification, str(notification_id), request.state.user["id"])
+        await asyncio.to_thread(read_one, request, str(notification_id))
         return Response(status_code=204)
 
     @router.post("/notifications/read", status_code=204)
     async def read_notifications(request: Request, body: Input):
+        await asyncio.to_thread(community(request).notification_action, request.state.auth_token, "read")
         await asyncio.to_thread(request.app.state.exports.read_notifications, request.state.user["id"])
         return Response(status_code=204)
 
     @router.delete("/notifications", status_code=204)
     async def clear_notifications(request: Request, body: Input):
+        await asyncio.to_thread(community(request).notification_action, request.state.auth_token, "clear")
         await asyncio.to_thread(request.app.state.exports.clear_notifications, request.state.user["id"])
         return Response(status_code=204)
 
     @router.delete("/notifications/{notification_id}", status_code=204)
     async def clear_notification(request: Request, notification_id: UUID, body: Input):
+        await asyncio.to_thread(community(request).notification_action, request.state.auth_token, "clear", str(notification_id))
         await asyncio.to_thread(request.app.state.exports.clear_notifications, request.state.user["id"], str(notification_id))
         return Response(status_code=204)
 

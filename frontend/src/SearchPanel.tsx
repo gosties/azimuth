@@ -1,3 +1,4 @@
+import { useTransientMessage } from './useTransientMessage'
 import { AdvancedTemporal } from './AdvancedTemporal'
 import './SearchExtensions.css'
 import { useEffect, useId, useState } from 'react'
@@ -12,7 +13,7 @@ import { changeRadiusUnit, distance, number, parseRadius, pickedCenter, searchLi
 
 function Conversions({ coordinate, pick }: Pick<Draft, 'coordinate' | 'pick'>) {
   const [result, setResult] = useState<CoordinateInfo | null>(null)
-  const [feedback, setFeedback] = useState('')
+  const [feedback, setFeedback, feedbackProps] = useTransientMessage('')
   useEffect(() => {
     const controller = new AbortController()
     setResult(null)
@@ -44,7 +45,7 @@ function Conversions({ coordinate, pick }: Pick<Draft, 'coordinate' | 'pick'>) {
       <summary>Other H3 resolutions <span>0–15</span></summary>
       <dl>{info.h3_resolutions.map((value, resolution) => resolution === 3 ? null : row('H3 Res ' + resolution, value))}</dl>
     </details>}
-    {feedback && <p className="quiet" role="status">{feedback}</p>}
+    {feedback && <p className="quiet" role="status" {...feedbackProps}>{feedback}</p>}
   </details>
 }
 
@@ -54,11 +55,11 @@ export function SearchPanel() {
     filteringTime, savedSearches, openSavedSearches } = useWorkspace()
   const [source, setSource] = useState<'coordinate' | 'csv'>('coordinate')
   const [centers, setCenters] = useState<Center[] | null>(null)
-  const [feedback, setFeedback] = useState('')
+  const [feedback, setFeedback, feedbackProps] = useTransientMessage('')
   const saveHintId = useId()
   const [searchName, setSearchName] = useState('')
   const [savingSearch, setSavingSearch] = useState(false)
-  const [saveFeedback, setSaveFeedback] = useState<{ sessionId: string; text: string; error: boolean } | null>(null)
+  const [saveFeedback, setSaveFeedback, saveFeedbackProps] = useTransientMessage<{ sessionId: string; text: string; error: boolean } | null>(null)
   const currentSaveFeedback = saveFeedback?.sessionId === session?.id ? saveFeedback : null
   const canNameSearch = !!(session && query) && !searching && !filteringTime
   const canSaveSearch = canNameSearch && !!searchName.trim() && !savingSearch && !!savedSearches && !savedSearches.libraryBusy
@@ -124,7 +125,7 @@ export function SearchPanel() {
           </>}
         </div>
         {hasLocalScope && <p className="quiet">Links are unavailable for a scope containing private local datasets.</p>}
-        {feedback && <p className="quiet" role="status">{feedback}</p>}
+        {feedback && <p className="quiet" role="status" {...feedbackProps}>{feedback}</p>}
         {session && query && <div className="search-summary" role="status">
           <span><strong>{number.format(session.total)}</strong> {session.total === 1 ? 'match' : 'matches'} · {distance(query.radius_m)} · {session.id.startsWith('local-search:') ? 'Local catalogs' : session.id.startsWith('federated:') ? 'Shared + local catalogs' : lookupModeLabel(session.lookup_mode ?? query.lookup_mode, config ?? null)}{searchElapsed !== null && ' · ' + (searchElapsed / 1000).toFixed(2) + ' s'}</span>
         </div>}
@@ -146,7 +147,7 @@ export function SearchPanel() {
                 </button>
               </div>
               <p className="quiet" id={saveHintId}>{session && query ? 'Save the settings used for these results.' : 'Run a search to save its settings.'}</p>
-              {currentSaveFeedback && <p className={currentSaveFeedback.error ? 'inline-error' : 'quiet'} role={currentSaveFeedback.error ? 'alert' : 'status'}>{currentSaveFeedback.text}</p>}
+              {currentSaveFeedback && <p className={currentSaveFeedback.error ? 'inline-error' : 'quiet'} role={currentSaveFeedback.error ? 'alert' : 'status'} {...saveFeedbackProps}>{currentSaveFeedback.text}</p>}
             </div>
             {savedSearches && <SavedLocationBrowser saved={savedSearches}/>}
           </details>

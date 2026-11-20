@@ -187,5 +187,10 @@ export class MapAggregationAccumulator {
     return Array.from(this.bins.values(), bin => bin.feature)
   }
 
+  /** Iterate occupied bins only, without inspecting their source members. */
+  *getCounts(): IterableIterator<number> {
+    for (const bin of this.bins.values()) yield bin.members.length
+  }
+
   getGroupCount(): number { return this.bins.size }
 }

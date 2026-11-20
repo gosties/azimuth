@@ -8,7 +8,12 @@ export type Role = 'user' | 'admin' | 'superadmin'
 export type ExportSource = 'iceberg' | 'sqlserver'
 export type ExportSettings = {source: ExportSource}
 export type ExportStatus = {id:string;status:string;format?:string;source?:ExportSource;download_url?:string|null;error?:string|null;rows_done?:number;total?:number;queue_position?:number|null;expires_at?:string|null}
-export type Notification = {id:string;export_id:string;event:string;message:string;created:number;unread:boolean;download_url?:string|null;expires_at?:number|null}
+export type Notification = {id:string;export_id?:string|null;feedback_id?:string|null;event:string;message:string;created:number;unread:boolean;download_url?:string|null;expires_at?:number|null}
+export type FeedbackCategory = 'bug' | 'idea' | 'question' | 'experience' | 'other'
+export type FeedbackComment = {id:string;body:string;created_at:string;author_id:string;author_email:string}
+export type FeedbackThread = {id:string;category:FeedbackCategory;subject:string;body:string;status:'new'|'reviewing'|'resolved';created_at:string;updated_at:string;author_id:string;author_email:string;comments?:FeedbackComment[]}
+export type Announcement = {id:string;title:string;body:string;image_data_url:string|null;image_alt:string;revision:number;published:boolean;created_at:string;updated_at:string}
+export type AnnouncementDraft = Pick<Announcement, 'title'|'body'|'image_data_url'|'image_alt'>
 export type User = { id: string; email: string; role: Role }
 export type AuthSession = { user: User; csrf_token: string; expires_at: string }
 export type AuthState = AuthSession | { user: null; csrf_token: null }
@@ -172,6 +177,16 @@ async function streamPoints(session: string, viewport: Viewport, limit: number, 
 }
 
 export const remoteApi = {
+  feedback: (admin = false, offset = 0, signal?: AbortSignal) => request<{items:FeedbackThread[];total:number}>((admin ? '/admin' : '') + '/feedback?limit=50&offset=' + offset, {signal}),
+  createFeedback: (value: {category:FeedbackCategory;subject:string;body:string;submission_id?:string}) => request<FeedbackThread>('/feedback', payload('POST', value)),
+  feedbackThread: (id:string, signal?:AbortSignal) => request<FeedbackThread>('/feedback/' + encode(id), {signal}),
+  commentFeedback: (id:string, body:string, submission_id?:string) => request<FeedbackComment>('/feedback/' + encode(id) + '/comments', payload('POST', {body,submission_id})),
+  feedbackStatus: (id:string, status:FeedbackThread['status']) => request<FeedbackThread>('/admin/feedback/' + encode(id), payload('PATCH', {status})),
+  announcements: (history = false, signal?:AbortSignal) => request<{items:Announcement[]}>('/announcements' + (history ? '/history' : ''), {signal}),
+  dismissAnnouncement: (id:string, revision:number) => request<void>('/announcements/' + encode(id) + '/dismiss', payload('POST', {revision})),
+  adminAnnouncements: (signal?:AbortSignal) => request<{items:Announcement[]}>('/admin/announcements', {signal}),
+  saveAnnouncement: (id:string|null, draft:AnnouncementDraft) => request<Announcement>('/admin/announcements' + (id ? '/' + encode(id) : ''), payload(id ? 'PUT' : 'POST', {title:draft.title,body:draft.body,image_data_url:draft.image_data_url,image_alt:draft.image_alt})),
+  publishAnnouncement: (id:string, publish = true) => request<Announcement>('/admin/announcements/' + encode(id) + (publish ? '/publish' : '/unpublish'), payload('POST', {})),
   notifications: (signal?: AbortSignal) => request<{items:Notification[];unread_count?:number}>('/notifications', {signal}),
   readNotification: (id: string) => request<void>('/notifications/' + encode(id) + '/read', payload('POST', {})),
   readNotifications: () => request<void>('/notifications/read', payload('POST', {})),

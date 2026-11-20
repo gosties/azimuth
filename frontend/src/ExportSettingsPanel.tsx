@@ -1,3 +1,4 @@
+import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useState } from 'react'
 import { api, errorText, type ExportSettings, type ExportSource } from './api'
 
@@ -7,7 +8,7 @@ export function ExportSettingsPanel() {
   const [attempt, setAttempt] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageProps] = useTransientMessage('')
   useEffect(() => {
     const controller = new AbortController()
     setSaved(null); setError(''); setMessage('')
@@ -20,7 +21,7 @@ export function ExportSettingsPanel() {
     <div className="section-heading"><div><h2>Exports</h2><p>Choose where new exports retrieve full record values.</p></div></div>
     <p className="quiet">This setting applies to all users. Each export keeps the source selected when it was staged.</p>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {message && <p className="quiet" role="status">{message}</p>}
+    {message && <p className="quiet" role="status" {...messageProps}>{message}</p>}
     {!saved ? error ? <button className="button secondary" onClick={() => setAttempt(value => value + 1)}>Retry export settings</button> : <p className="quiet" role="status">Loading export settings…</p> : <>
       <label>Export record source<select value={source} disabled={busy} onChange={event => { setSource(event.target.value as ExportSource); setMessage('') }}>
         <option value="iceberg">Full-width Iceberg (Parquet)</option>

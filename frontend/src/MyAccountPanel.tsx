@@ -1,3 +1,4 @@
+import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useState } from 'react'
 import { Columns3, RefreshCw, RotateCcw, UserRound, X } from 'lucide-react'
 import { api, errorText, type Column } from './api'
@@ -24,7 +25,7 @@ export function MyAccountPanel() {
   const [loading, setLoading] = useState(true)
   const [revision, setRevision] = useState(0)
   const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageProps] = useTransientMessage('')
   const [busy, setBusy] = useState(false)
   const [editor, setEditor] = useState<Editor | null>(null)
   const [columns, setColumns] = useState<Column[] | null>(null)
@@ -87,7 +88,7 @@ export function MyAccountPanel() {
     <div className="my-account-preferences-heading"><h3>Saved column choices</h3><button className="icon-button" aria-label="Refresh saved column choices" disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={14}/></button></div>
     <p className="quiet">Column choices apply to your search result tables.</p>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {message && <p className="quiet" role="status">{message}</p>}
+    {message && <p className="quiet" role="status" {...messageProps}>{message}</p>}
     {loading && <p className="quiet" role="status">Loading saved column choices…</p>}
     {!loading && !error && !tables.length && <p className="quiet">No published datasets or saved column choices.</p>}
     <button className="button secondary" disabled={loading || busy || !items.length} onClick={() => void reset()}><RotateCcw size={14}/> Reset all column choices</button>

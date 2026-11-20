@@ -1,3 +1,4 @@
+import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useState } from 'react'
 import { KeyRound, Plus, RefreshCw, Shield, UserRound, X } from 'lucide-react'
 import { api, errorText, type Account, type Role } from './api'
@@ -20,7 +21,7 @@ function AccountManagement({ owner }: {owner: string}) {
   const [action, setAction] = useState<Action | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageProps] = useTransientMessage('')
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
@@ -55,7 +56,7 @@ function AccountManagement({ owner }: {owner: string}) {
   return <section className="panel-pad accounts-panel">
     <div className="section-heading"><div><h2>Accounts</h2><p>Manage access to Azimuth.</p></div><span className="heading-icon"><Shield size={17}/></span></div>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {message && <p className="quiet" role="status">{message}</p>}
+    {message && <p className="quiet" role="status" {...messageProps}>{message}</p>}
     {action ? <form className="account-editor" onSubmit={async event => {
       event.preventDefault()
       const form = event.currentTarget

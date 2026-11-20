@@ -1,6 +1,6 @@
 {
   "name": "h3-search-workspace",
-  "version": "0.6.3",
+  "version": "0.8.1",
   "scripts": {
     "test": "vitest run",
     "dev": "vite",

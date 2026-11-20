@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ChevronDown, CircleDot, ListFilter } from 'lucide-react'
 import type { DatasetResult } from './api'
-import { clusterCountExamples, clusterRadius, densityCountBands, densityFillColor, densityPaletteIds, densityPalettes, mapPaletteIds, mapPalettes, readDensityPalette, readMapPalette, type DensityPalette, type MapPalette } from './mapPalette'
+import { clusterCountExamples, clusterRadius, densityFillColor, densityPaletteIds, densityPalettes, mapPaletteIds, mapPalettes, readDensityPalette, readMapPalette, type DensityCountBand, type DensityPalette, type MapPalette } from './mapPalette'
 import { aggregationPixelSize, aggregationSizes, type AggregationSize } from './mapAggregation'
 import { number, visibleRange } from './workspace'
 
 export function MapLegend({ datasets, hidden, change, palette, changePalette, colorFor,
   displayMode = 'points', aggregationSize = 'standard', changeAggregationSize, renderedGroups = 0, loadedPoints = 0,
-  partial = false, updating = false, densityPalette = 'sunset', changeDensityPalette, groupingScale,
+  partial = false, updating = false, densityPalette = 'sunset', changeDensityPalette, densityBands = [], groupingScale,
 }: {
   datasets: DatasetResult[]
   hidden: ReadonlySet<string>
@@ -23,6 +23,7 @@ export function MapLegend({ datasets, hidden, change, palette, changePalette, co
   partial?: boolean
   updating?: boolean
   densityPalette?: DensityPalette
+  densityBands?: readonly DensityCountBand[]
   changeDensityPalette?: (palette: DensityPalette) => void
   groupingScale?: string
 }) {
@@ -38,6 +39,11 @@ export function MapLegend({ datasets, hidden, change, palette, changePalette, co
   const label = hexes ? 'Hex bins' : grouped ? 'Clusters' : 'Points'
   const average = renderedGroups > 0 ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(loadedPoints / renderedGroups) : '0'
   const ramp = densityPalettes[densityPalette].colors
+  const densityRange = densityBands.length ? (() => {
+    const min = densityBands[0].min
+    const max = densityBands[densityBands.length - 1].max
+    return `${number.format(min)}${min === max ? '' : `–${number.format(max)}`} points / bin · Auto`
+  })() : updating ? 'Loading bins…' : 'No loaded bins'
 
   const toggle = useCallback((id: string, shift: boolean) => {
     change(visibleRange(rows, anchor, id, shift), hidden.has(id))
@@ -56,9 +62,9 @@ export function MapLegend({ datasets, hidden, change, palette, changePalette, co
     <summary>
       <span className="az-legend-summary-title"><ListFilter size={14}/><strong>Legend · {label}</strong><ChevronDown size={13}/></span>
       <span className="az-legend-summary-key">
-        {hexes ? <span className="az-legend-mini-ramp" aria-hidden="true">{ramp.map(color => <i key={color} style={{ background: densityFillColor(color) }}/>)}</span>
+        {hexes ? <span className="az-legend-mini-ramp" aria-hidden="true">{densityBands.map(band => <i key={band.colorIndex} style={{ background: densityFillColor(ramp[band.colorIndex]) }}/>)}</span>
           : <CircleDot size={14} aria-hidden="true"/>}
-        <span>{hexes ? '1 → 64+ points / bin' : grouped ? 'Size = loaded points' : 'Color = dataset'}</span>
+        <span>{hexes ? densityRange : grouped ? 'Size = loaded points' : 'Color = dataset'}</span>
         <span className="az-legend-visible">{shown}/{datasets.length} visible</span>
       </span>
       <span className="az-legend-summary-stats">{number.format(loadedPoints)} loaded{grouped && <> · {number.format(renderedGroups)} {hexes ? 'bins' : 'groups'} · {aggregationSizes[aggregationSize].label}</>}{(updating || partial) && <b>{updating ? 'Updating viewport…' : 'Partial'}</b>}</span>
@@ -71,7 +77,7 @@ export function MapLegend({ datasets, hidden, change, palette, changePalette, co
             {(Object.keys(aggregationSizes) as AggregationSize[]).map(size => <option key={size} value={size}>{aggregationSizes[size].label}</option>)}
           </select>
         </label>
-        <p className="az-legend-note">{groupingScale ?? `${aggregationPixelSize(displayMode, aggregationSize)} px grid`}{!updating && <> · {average} points / {hexes ? 'bin' : 'group'} average</>}</p>
+        <p className="az-legend-note">{groupingScale ?? `${aggregationPixelSize(displayMode, aggregationSize)} px grid`}{!updating && (!hexes || renderedGroups > 0) && <> · {average} points / {hexes ? 'bin' : 'group'} average</>}</p>
       </>}
       <label className="az-legend-palette">{hexes ? 'Density palette' : grouped ? 'Cluster palette' : 'Point palette'}
         {hexes ? <select value={densityPalette} onChange={event => changeDensityPalette?.(readDensityPalette(event.target.value))}>
@@ -80,13 +86,13 @@ export function MapLegend({ datasets, hidden, change, palette, changePalette, co
           {mapPaletteIds.map(id => <option key={id} value={id}>{mapPalettes[id].label}</option>)}
         </select>}
       </label>
-      {hexes ? <div className="az-legend-density" aria-label="Loaded points per hex bin">{densityCountBands.map((band, index) => <span key={band.min}>
-        <i style={{ background: densityFillColor(ramp[index]) }} aria-hidden="true"/><span>{band.label}</span>
+      {hexes ? <div className="az-legend-density" aria-label="Loaded points per hex bin">{densityBands.map(band => <span key={band.min}>
+        <i style={{ background: densityFillColor(ramp[band.colorIndex]) }} aria-hidden="true"/><span>{band.label}</span>
       </span>)}</div> : grouped ? <div className="az-legend-clusters" aria-label="Cluster size by loaded point count">{clusterCountExamples.map(count => <span key={count}>
         <i style={{ width: clusterRadius(count) * 2, height: clusterRadius(count) * 2 }} aria-hidden="true"/>
         <span>{number.format(count)}</span>
       </span>)}</div> : null}
-      <p className="az-legend-note">{hexes ? 'Color = loaded point count. Dataset visibility below.' : grouped ? 'Color = largest dataset in each group. Size and label = loaded point count.' : 'Each point uses its dataset color.'}
+      <p className="az-legend-note">{hexes ? 'Auto: colors are relative to loaded bin counts. Dataset visibility below.' : grouped ? 'Color = largest dataset in each group. Size and label = loaded point count.' : 'Each point uses its dataset color.'}
         {updating ? ' Updating viewport… Counts describe the retained display.' : partial ? ' Partial display: some matching points are not loaded.' : ''}</p>
       <div className="az-legend-filters">
         <input type="search" aria-label="Filter legend datasets" placeholder="Filter datasets" value={filter} onChange={event => setFilter(event.target.value)}/>

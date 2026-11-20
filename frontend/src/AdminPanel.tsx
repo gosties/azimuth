@@ -1,3 +1,4 @@
+import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useState } from 'react'
 import { ExternalLink, Link, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { AccountsPanel } from './AccountsPanel'
@@ -7,8 +8,9 @@ import { api, errorText, type Basemap, type Category, type MapSettings, type Rel
 import { copyText } from './clipboard'
 import { canManageDatasets, useWorkspace } from './workspace'
 import './AdminPanel.css'
+import { FeedbackPanel, AnnouncementsAdmin } from './Community'
 
-type Tab = 'Catalog' | 'Categories' | 'Users' | 'Maps' | 'Exports' | 'Infrastructure' | 'Release notes'
+type Tab = 'Catalog' | 'Categories' | 'Users' | 'Maps' | 'Exports' | 'Infrastructure' | 'Release notes' | 'Feedback inbox' | 'Announcements'
 const tabId = (tab: Tab) => tab.replace(/ /g, '-')
 
 const infrastructureDocument = '/api/admin/infrastructure/document'
@@ -26,7 +28,7 @@ export function AdminPanel({ onMapsChanged, initialTab = 'Catalog' }: {
   const { user, reload, config } = useWorkspace()
   const [requestedTab, setTab] = useState<Tab>(initialTab)
   const infrastructureAvailable = config?.infrastructure_document_available === true
-  const tabs: Tab[] = ['Catalog', 'Categories', ...(user.role === 'superadmin' ? ['Users' as const] : []), 'Maps', 'Exports',
+  const tabs: Tab[] = ['Catalog', 'Categories', ...(user.role === 'superadmin' ? ['Users' as const, 'Feedback inbox' as const, 'Announcements' as const] : []), 'Maps', 'Exports',
     ...(infrastructureAvailable ? ['Infrastructure' as const] : []), 'Release notes']
   const tab = tabs.includes(requestedTab) ? requestedTab : 'Catalog'
   const [categories, setCategories] = useState<Category[]>([])
@@ -51,6 +53,8 @@ export function AdminPanel({ onMapsChanged, initialTab = 'Catalog' }: {
       {tab === 'Catalog' && <CatalogAdminPanel categories={categories}/>}
       {tab === 'Categories' && <CategoriesPanel categories={categories} loading={categoriesLoading} editable={user.role === 'superadmin'} onChanged={items => { setCategories(items); reload() }}/>}
       {tab === 'Users' && user.role === 'superadmin' && <AccountsPanel/>}
+      {tab === 'Feedback inbox' && user.role === 'superadmin' && <FeedbackPanel inbox/>}
+      {tab === 'Announcements' && user.role === 'superadmin' && <AnnouncementsAdmin/>}
       {tab === 'Maps' && <MapsPanel onChanged={onMapsChanged}/>}
       {tab === 'Exports' && <ExportSettingsPanel/>}
       {tab === 'Infrastructure' && <InfrastructurePanel/>}
@@ -85,7 +89,7 @@ function ReleaseNotes() {
 
 function InfrastructurePanel() {
   const { dark } = useWorkspace()
-  const [copyStatus, setCopyStatus] = useState<'copied' | 'failed' | null>(null)
+  const [copyStatus, setCopyStatus, copyProps] = useTransientMessage<'copied' | 'failed' | null>(null)
   const shareUrl = new URL('?' + infrastructureQuery, window.location.href).href
 
   async function copyLink(doc: Document) {
@@ -103,9 +107,9 @@ function InfrastructurePanel() {
       <div className="admin-row-actions">
         <a className="button secondary" href={infrastructureDocument} target="_blank" rel="noopener"><ExternalLink size={15}/> Open document</a>
         <button className="button secondary" type="button" onClick={event => void copyLink(event.currentTarget.ownerDocument)}><Link size={15}/> Copy share link</button>
-        {copyStatus === 'copied' && <span className="quiet" role="status">Link copied.</span>}
+        {copyStatus === 'copied' && <span className="quiet" role="status" {...copyProps}>Link copied.</span>}
       </div>
-      {copyStatus === 'failed' && <label>Share link
+      {copyStatus === 'failed' && <label {...copyProps}>Share link
         <input readOnly value={shareUrl} onFocus={event => event.currentTarget.select()} aria-describedby="infrastructure-copy-status"/>
         <span className="quiet" id="infrastructure-copy-status" role="status">Copy the link from this field.</span>
       </label>}
@@ -158,7 +162,7 @@ function MapsPanel({ onChanged }: { onChanged?: () => void | Promise<void> }) {
   const [busy, setBusy] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageProps] = useTransientMessage('')
   const [optionsValid, setOptionsValid] = useState(true)
   useEffect(() => {
     const controller = new AbortController(); setError(''); setSettings(null)
@@ -168,7 +172,7 @@ function MapsPanel({ onChanged }: { onChanged?: () => void | Promise<void> }) {
   }, [revision])
   const update = (value: MapSettings) => { setSettings(value); setDirty(true); setMessage('') }
   return <section className="panel-pad admin-maps"><div className="section-heading"><div><h2>Maps</h2><p>Configure the basemaps offered in the map selector.</p></div><button type="button" className="icon-button" aria-label="Reload maps" disabled={busy || dirty} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15}/></button></div>
-    {error && <p className="inline-error" role="alert">{error}</p>}{message && <p className="quiet" role="status">{message}</p>}
+    {error && <p className="inline-error" role="alert">{error}</p>}{message && <p className="quiet" role="status" {...messageProps}>{message}</p>}
     <p className="quiet">Map URLs and options are shared with signed-in browsers. Use services reachable by those browsers with compatible cross-origin access and trusted TLS. Do not enter service passwords or private access tokens.</p>
     {!settings ? error ? <button className="button secondary" onClick={() => setRevision(value => value + 1)}>Retry maps</button> : <p className="quiet" role="status">Loading maps…</p> : <>
       <label>Default map<select value={settings.default_map_id ?? ''} disabled={busy} onChange={event => update({ ...settings, default_map_id: event.target.value || null })}><option value="">No default map</option>{settings.maps.map(map => <option key={map.id} value={map.id}>{map.name}</option>)}</select></label>

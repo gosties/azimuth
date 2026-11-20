@@ -5,6 +5,8 @@ import { ArrowLeft, ArrowRight, Bookmark, BookOpen, ChevronDown, CircleHelp, Cro
 import { api, ApiError, errorText, type AuthSession, type Center, type Config, type Dataset, type SavedSearchSettings, type SearchQuery, type Session, type TimeFilter } from './api'
 import { AdminPanel, isInfrastructureLink } from './AdminPanel'
 import { MyAccountPanel } from './MyAccountPanel'
+import { Announcements, FeedbackPanel, selectFeedbackThread } from './Community'
+import { MessageSquare } from 'lucide-react'
 import { NotificationsBell } from './NotificationsBell'
 import { AzimuthMark, AzimuthWordmark } from './AzimuthMark'
 import { DatasetsPanel } from './DatasetsPanel'
@@ -29,6 +31,7 @@ const panels = {
   catalogAdmin: { title: 'Administration', icon: Shield, component: Administration },
   accounts: { title: 'Administration', icon: Shield, component: Administration },
   myAccount: { title: 'My account', icon: UserRound, component: MyAccountPanel },
+  feedback: { title: 'Feedback', icon: MessageSquare, component: () => <FeedbackPanel/> },
   help: { title: 'Help', icon: BookOpen, component: HelpPanel },
 }
 type PanelId = keyof typeof panels
@@ -548,7 +551,9 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
             </div>}
           </div>
           <button className="header-button compact" aria-label="Open help panel" title="Open help" onClick={() => openPanel('help')}><CircleHelp size={18}/></button>
-          <NotificationsBell/>
+          <button className="header-button" onClick={() => openPanel('feedback')}><MessageSquare size={16}/><span>Feedback</span></button>
+          <Announcements shareFeedback={() => openPanel('feedback')}/>
+          <NotificationsBell openFeedback={id => { selectFeedbackThread(id, user.id); openPanel('feedback') }}/>
           <button className="header-button compact" aria-label={dark ? 'Use light theme' : 'Use dark theme'} title={dark ? 'Use light theme' : 'Use dark theme'} onClick={toggleTheme}>{dark ? <Sun size={18}/> : <Moon size={17}/>}</button>
           <div className="layout-menu" ref={accountMenu}>
             <button className="header-button compact" aria-label="Account menu" title="Account menu" aria-expanded={accountOpen} onClick={() => setAccountOpen(!accountOpen)}><UserRound size={17}/></button>

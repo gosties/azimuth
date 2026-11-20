@@ -1,3 +1,4 @@
+import { useTransientMessage } from './useTransientMessage'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { CircleDashed, Crosshair, Ellipsis, Layers, LocateFixed, MapPin, Maximize, Minus, Plus } from 'lucide-react'
 import Feature from 'ol/Feature'
@@ -30,7 +31,7 @@ import { bindCircleGesture, type CirclePreview } from './circleGesture'
 import { circleBoundary, EARTH_RADIUS, geographicPoint, normalizeLongitude, project } from './geometry'
 import { MapContextMenu, type MapMenuPosition } from './MapContextMenu'
 import { MapLegend } from './MapLegend'
-import { clusterRadius, datasetColorSlots, densityColor, densityFill, readDensityPalette, mapColorResolver, readMapPalette, type DensityPalette, type MapPalette } from './mapPalette'
+import { clusterRadius, datasetColorSlots, densityColor, densityCountBands, densityFill, type DensityCountBand, readDensityPalette, mapColorResolver, readMapPalette, type DensityPalette, type MapPalette } from './mapPalette'
 import { useMapCoordinates } from './mapCoordinates'
 import { PointPopup } from './PointPopup'
 import { useViewportPoints } from './useViewportPoints'
@@ -178,11 +179,11 @@ export function MapPanel() {
   const mapRef = useRef<Map | null>(null)
   const [renderVersion, setRenderVersion] = useState(0)
   const [basemapId, setBasemapId] = useState<string | null>(null)
-  const [mapError, setMapError] = useState('')
+  const [mapError, setMapError, mapErrorProps] = useTransientMessage('')
   const [pointer, setPointer] = useState<Center | null>(null)
   const [menu, setMenu] = useState<MapMenuPosition | null>(null)
   const [preview, setPreview] = useState<CirclePreview | null>(null)
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice, noticeProps] = useTransientMessage('')
   const [visibility, setVisibility] = useState<{ session: string; hidden: ReadonlySet<string> } | null>(null)
   const hidden = visibility && visibility.session === sessionId ? visibility.hidden : emptyHidden
   const visibleIds = useMemo(() => hidden.size ? matchingDatasets.filter(dataset => !hidden.has(dataset.id)).map(dataset => dataset.id) : undefined, [hidden, matchingDatasets])
@@ -191,6 +192,8 @@ export function MapPanel() {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('points')
   const aggregationSize = displayMode === 'clusters' ? clusterSize : displayMode === 'hexes' ? hexSize : 'standard'
   const [renderedGroups, setRenderedGroups] = useState(0)
+  const [densityBands, setDensityBands] = useState<readonly DensityCountBand[]>([])
+  const liveDensityBands = useRef(densityBands)
   const canonicalCount = useRef(0)
   const [loadedPoints, setLoadedPoints] = useState(0)
   const liveDisplayMode = useRef(displayMode)
@@ -222,8 +225,8 @@ export function MapPanel() {
       const dominant = feature.get('dominantDataset') as string
       const count = feature.get('count') as number
       const hex = feature.getGeometry() instanceof Polygon
-      const fill = hex ? densityFill(count, liveDensityPalette.current) : liveClusterColorFor.current(dominant)
-      const outline = hex ? densityColor(count, liveDensityPalette.current) : '#6b4b26'
+      const fill = hex ? densityFill(count, liveDensityPalette.current, liveDensityBands.current) : liveClusterColorFor.current(dominant)
+      const outline = hex ? densityColor(count, liveDensityPalette.current, liveDensityBands.current) : '#6b4b26'
       const key = `${hex}:${fill}:${count}`
       let style = aggregateStyles.get(key)
       if (!style) {
@@ -473,6 +476,9 @@ export function MapPanel() {
     mapRef, layers.points.getSource(), renderVersion, session?.total ? sessionId : undefined, visibleIds, pointLimit,
   )
 
+  const [pointNotice, setPointNotice, pointNoticeProps] = useTransientMessage('')
+  useEffect(() => { setPointNotice(pointError) }, [pointError, setPointNotice])
+
   useEffect(() => {
     const source = layers.points.getSource()!
     const aggregateSource = layers.aggregates.getSource()!
@@ -481,6 +487,13 @@ export function MapPanel() {
     setAggregate(null)
     let added: Feature<Point>[] = []
     let removed = false
+    function updateDensity(accumulator?: MapAggregationAccumulator) {
+      const bands = displayMode === 'hexes' && accumulator ? densityCountBands(accumulator.getCounts()) : []
+      liveDensityBands.current = bands
+      setDensityBands(previous => JSON.stringify(previous) === JSON.stringify(bands) ? previous : bands)
+      // A changed quantile can recolor untouched bins as well as this batch.
+      layers.aggregates.changed()
+    }
     function update(initial = false) {
       setLoadedPoints(canonicalCount.current)
       const resolution = mapRef.current?.getView().getResolution()
@@ -497,6 +510,7 @@ export function MapPanel() {
           cache.revision = source.getRevision()
           aggregateSource.addFeatures(active.accumulator.add(added))
           setRenderedGroups(active.accumulator.getGroupCount())
+          updateDensity(active.accumulator)
           added = []
           return
         }
@@ -507,7 +521,7 @@ export function MapPanel() {
       added = []
       removed = false
       aggregateSource.clear(true)
-      if (displayMode === 'points') { setRenderedGroups(0); return }
+      if (displayMode === 'points') { setRenderedGroups(0); updateDensity(); return }
       let accumulator = cache.modes.get(displayMode)?.size === aggregationSize ? cache.modes.get(displayMode)!.accumulator : undefined
       if (!accumulator) {
         accumulator = new MapAggregationAccumulator(displayMode, resolution, { pixelSize: aggregationPixelSize(displayMode, aggregationSize) })
@@ -516,6 +530,7 @@ export function MapPanel() {
       }
       aggregateSource.addFeatures(accumulator.getFeatures())
       setRenderedGroups(accumulator.getGroupCount())
+      updateDensity(accumulator)
     }
     const append = (event: { feature?: Feature }) => {
       if (event.feature) { added.push(event.feature as Feature<Point>); canonicalCount.current++ }
@@ -654,9 +669,9 @@ export function MapPanel() {
       </div>
       {pickCenter && <div className="map-pick-callout"><Crosshair size={14}/> Select a coordinate on the map</div>}
       {(drawCircle || preview) && <div className="map-pick-callout"><CircleDashed size={14}/> {preview ? <>Radius {drawDistance}{preview.radius > maxRadius && ' · Above limit'}</> : 'Drag to draw a search circle. Esc cancels.'}</div>}
-      {mapError && <div className="map-alert" role="alert">{mapError}</div>}
-      {pointError && <div className="map-alert points-alert" role="alert">{pointError} <button className="text-button" onClick={retryPoints}>Retry points</button></div>}
-      {notice && <div className="az-map-notice" role="status">{notice}<button type="button" className="text-button" onClick={() => setNotice('')}>Dismiss</button></div>}
+      {mapError && <div className="map-alert" role="alert" {...mapErrorProps}>{mapError}</div>}
+      {pointNotice && <div className="map-alert points-alert" role="alert" {...pointNoticeProps}>{pointNotice} <button className="text-button" onClick={retryPoints}>Retry points</button></div>}
+      {notice && <div className="az-map-notice" role="status" {...noticeProps}>{notice}<button type="button" className="text-button" onClick={() => setNotice('')}>Dismiss</button></div>}
       {session && visibleSelection && <PointPopup session={session} selection={visibleSelection}/>}
       {aggregate && session && <MapAggregateInspector key={aggregate.getId()} group={aggregate} mode={displayMode} datasets={matchingDatasets}
         colorFor={displayMode === 'clusters' ? clusterColorFor : colorFor} close={() => setAggregate(null)} zoom={() => zoomAggregate(aggregate)} choose={row => {
@@ -667,7 +682,7 @@ export function MapPanel() {
         palette={displayMode === 'clusters' ? clusterPalette : palette} changePalette={changePalette} colorFor={displayMode === 'clusters' ? clusterColorFor : colorFor}
         displayMode={displayMode} aggregationSize={aggregationSize} changeAggregationSize={changeAggregationSize}
         renderedGroups={renderedGroups} loadedPoints={loadedPoints} partial={!!points?.truncated} updating={loading && !points}
-        densityPalette={densityPalette} changeDensityPalette={changeDensityPalette} groupingScale={groupingScale}/>}
+        densityBands={densityBands} densityPalette={densityPalette} changeDensityPalette={changeDensityPalette} groupingScale={groupingScale}/>}
       {menu && <MapContextMenu position={menu} formatted={formatted} close={closeMenu} setCenter={setCenter}
         searchHere={submitAt} searchDisabled={!canSearchHere} report={setNotice}/>}
     </div>

@@ -127,6 +127,8 @@ class Registry:
             self._assert_no_clean_slate(conn)
             conn.execute("INSERT INTO account_mutex (singleton) VALUES (1) ON CONFLICT DO NOTHING")
             seed_release_notes(conn)
+            from .community import initialize as initialize_community
+            initialize_community(conn)
 
     @staticmethod
     def _assert_no_clean_slate(conn):

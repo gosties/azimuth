@@ -1,3 +1,4 @@
+import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CircleHelp, Plus, X } from 'lucide-react'
@@ -20,7 +21,7 @@ export function LocalCatalogManager() {
   const [catalogs, setCatalogs] = useState<LocalCatalog[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [feedback, setFeedback] = useState('')
+  const [feedback, setFeedback, feedbackProps] = useTransientMessage('')
   const [showImport, setShowImport] = useState(false)
   const [parquet, setParquet] = useState<File | null>(null)
   const [parquetColumns, setParquetColumns] = useState<{name:string;type:string}[]>([])
@@ -145,7 +146,7 @@ export function LocalCatalogManager() {
   </section>{(busy || error || feedback) && <div className="local-dialog-status">    {busy && <p className="quiet" role="status">Working with local catalog…</p>}
     {busy && cancelable && <button type="button" className="button subtle" onClick={() => operation.current?.abort()}>Cancel operation</button>}
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {feedback && <p className="quiet" role="status">{feedback}</p>}
+    {feedback && <p className="quiet" role="status" {...feedbackProps}>{feedback}</p>}
 </div>}</div></div>, ownerDocument.body)}
   </>
 }

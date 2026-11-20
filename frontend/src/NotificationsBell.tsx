@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react'
 import { api, errorText, type Notification } from './api'
 import { exportExpired, exportProgress, useExports } from './useExports'
 
-export function NotificationsBell({ openExports }: {openExports?: () => void}) {
+export function NotificationsBell({ openExports, openFeedback }: {openExports?: () => void; openFeedback?: (id:string) => void}) {
   const [{items, unread}, setFeed] = useState<{items: Notification[]; unread: number}>({items:[], unread:0})
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -44,7 +44,8 @@ export function NotificationsBell({ openExports }: {openExports?: () => void}) {
     void refresh()
     const timer = window.setInterval(refresh, 5000)
     window.addEventListener('azimuth-exports', changed)
-    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener('azimuth-exports', changed) }
+    window.addEventListener('azimuth-community', changed)
+    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener('azimuth-exports', changed); window.removeEventListener('azimuth-community', changed) }
   }, [])
   const change = async (action: () => Promise<void>, update: (current: Notification[]) => Notification[], unreadRemoved: number) => {
     setBusy(true); setActionError('')
@@ -59,7 +60,7 @@ export function NotificationsBell({ openExports }: {openExports?: () => void}) {
     <button className="header-button compact" aria-label={'Notifications' + (unread ? ' · ' + unread + ' unread' : '')} popoverTarget={panel}><Bell size={17}/>{unread > 0 && <span className="notification-count">{unread}</span>}</button>
     <div id={panel} popover="auto" className="notification-panel" aria-label="Notifications">
       <div className="my-account-preferences-heading"><strong>Notifications</strong><a className="text-button" href="/exports" onClick={openExports ? event => { event.preventDefault(); openExports() } : undefined}>My exports</a></div>
-      <p className="quiet">Clearing notifications keeps your exports and downloads in My exports.</p>
+      <p className="quiet">Clearing notifications keeps your feedback conversations and export history.</p>
       {unread > 0 && <button className="text-button" disabled={busy} onClick={() => {
         const ids = new Set(items.map(item => item.id))
         void change(api.readNotifications, current => current.map(item => ids.has(item.id) ? {...item, unread:false} : item), unread)
@@ -75,6 +76,7 @@ export function NotificationsBell({ openExports }: {openExports?: () => void}) {
       {!items.length && !activeExports.length && <p className="quiet">No notifications.</p>}
       <ul>{items.map(item => <li key={item.id} className={item.unread ? 'notification-unread' : ''}>
         <p>{item.message}</p><small>{new Date(item.created * 1000).toLocaleString()}</small>
+        {item.feedback_id && openFeedback && <button className="text-button" onClick={event => { event.currentTarget.closest<HTMLElement>('[popover]')?.hidePopover(); openFeedback(item.feedback_id!); if(item.unread) void change(() => api.readNotification(item.id), current => current.map(value=>value.id===item.id ? {...value,unread:false} : value),1) }}>Open feedback</button>}
         {item.download_url && (!item.expires_at || item.expires_at * 1000 > Date.now()) && <><a className="text-button" href={item.download_url}>Download export</a>
           {item.expires_at && <small>Expires {new Date(item.expires_at * 1000).toLocaleString()}</small>}</>}
         {item.unread && <button className="text-button" disabled={busy} onClick={() => void change(() => api.readNotification(item.id), current => current.map(value => value.id === item.id ? {...value, unread:false} : value), 1)}>Mark read</button>}

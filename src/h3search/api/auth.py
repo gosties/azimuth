@@ -59,7 +59,7 @@ def minimum_role(method: str, path: str) -> str:
     """
     parts = path.strip("/").split("/")
     if parts[:2] == ["api", "admin"]:
-        return "superadmin" if len(parts) > 2 and parts[2] in {"users", "categories"} else "admin"
+        return "superadmin" if len(parts) > 2 and parts[2] in {"users", "categories", "feedback", "announcements"} else "admin"
     if parts[:2] == ["api", "datasets"]:
         if method in {"POST", "PUT", "PATCH", "DELETE"} or (len(parts) == 4 and parts[3] == "columns"):
             return "admin"

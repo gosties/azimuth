@@ -271,6 +271,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Azimuth", lifespan=lifespan, openapi_url=None)
     router = APIRouter(prefix="/api")
     router.include_router(auth.router())
+    from .community import register_community
+    register_community(router, registry, auth)
     auth.register_handlers(app)
 
     @app.middleware("http")
@@ -284,6 +286,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response = JSONResponse({"detail": "Authentication is temporarily unavailable"}, status_code=503)
         if response is None:
             maximum = None
+            if request.method in {"POST", "PUT", "PATCH", "DELETE"} and request.url.path.startswith(("/api/feedback", "/api/announcements", "/api/admin/feedback", "/api/admin/announcements")):
+                maximum = 3 * 1024 * 1024 if request.url.path.startswith("/api/admin/announcements") else 65536
+                body_label = "Community request"
             if request.url.path in {"/api/csv/preview", "/api/csv/locations"}:
                 # JSON may escape each input byte as six ASCII characters. Bound the
                 # transport before JSON decoding as well as the decoded CSV below.

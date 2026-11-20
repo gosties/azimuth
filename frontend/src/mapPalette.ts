@@ -43,17 +43,73 @@ export function mapColorResolver(palette: MapPalette, slots: ReadonlyMap<string,
   return (id: string) => colors[(slots.get(id) ?? 0) % colors.length]
 }
 
-/** Fixed loaded-point count bands shared by the map and its legend. */
-export const densityCountBands = [
-  { min: 1, label: '1' }, { min: 2, label: '2–4' }, { min: 5, label: '5–15' },
-  { min: 16, label: '16–63' }, { min: 64, label: '64+' },
-] as const
+export interface DensityCountBand {
+  min: number
+  max: number
+  label: string
+  colorIndex: number
+}
+
+/** Quantiles give each occupied loaded bin one vote; ties never split a class. */
+export function densityCountBands(counts: Iterable<number>): DensityCountBand[] {
+  const sorted = Array.from(counts).filter(count => Number.isSafeInteger(count) && count > 0).sort((a, b) => a - b)
+  if (!sorted.length) return []
+  const maximum = sorted[sorted.length - 1]
+  const cutoffs = new Set<number>()
+  for (let quantile = 1; quantile < 5; quantile++) {
+    const cutoff = sorted[Math.ceil(sorted.length * quantile / 5) - 1]
+    if (cutoff < maximum) cutoffs.add(cutoff)
+  }
+  const values: number[] = []
+  const cumulative: number[] = []
+  for (let index = 0; index < sorted.length; index++) {
+    if (index + 1 === sorted.length || sorted[index + 1] !== sorted[index]) {
+      values.push(sorted[index])
+      cumulative.push(index + 1)
+    }
+  }
+  const targetClasses = Math.min(5, values.length)
+  // Tied quantiles can hide a sparse tail. Split the largest eligible class
+  // at its nearest occupied median boundary until available shades are used.
+  while (cutoffs.size + 1 < targetClasses) {
+    let start = 0
+    let selectedStart = 0
+    let selectedEnd = 0
+    let largest = -1
+    for (let end = 0; end < values.length; end++) {
+      if (!cutoffs.has(values[end]) && end + 1 !== values.length) continue
+      const weight = cumulative[end] - (cumulative[start - 1] ?? 0)
+      if (end > start && weight > largest) {
+        selectedStart = start
+        selectedEnd = end
+        largest = weight
+      }
+      start = end + 1
+    }
+    const before = cumulative[selectedStart - 1] ?? 0
+    const midpoint = (before + cumulative[selectedEnd]) / 2
+    let boundary = selectedStart
+    for (let index = selectedStart + 1; index < selectedEnd; index++) {
+      if (Math.abs(cumulative[index] - midpoint) < Math.abs(cumulative[boundary] - midpoint)) boundary = index
+    }
+    cutoffs.add(values[boundary])
+  }
+  const limits = [...cutoffs].sort((a, b) => a - b).concat(maximum)
+  let position = 0
+  return limits.map((max, index) => {
+    const min = sorted[position]
+    while (position < sorted.length && sorted[position] <= max) position++
+    return { min, max, label: min === max ? String(min) : `${min}–${max}`,
+      colorIndex: limits.length === 1 ? 2 : Math.round(index * 4 / (limits.length - 1)) }
+  })
+}
 
 export const densityPalettes = {
   sunset: { label: 'Sunset', colors: ['#ffe94a', '#ffad18', '#ff622c', '#eb268d', '#9b075c'] },
   tropical: { label: 'Tropical', colors: ['#63ffe5', '#22cfed', '#1099ec', '#1365dc', '#16368f'] },
   electric: { label: 'Electric', colors: ['#e3c6ff', '#c28aff', '#a44af4', '#7c20c3', '#4c0879'] },
   lime: { label: 'Lime', colors: ['#d4ff35', '#9ce72b', '#45bf54', '#0c937b', '#00685e'] },
+  ember: { label: 'Ember', colors: ['#ffffff', '#ffe0bf', '#ffb77b', '#e9853f', '#bf5700'] },
   gray: { label: 'Gray', colors: ['#efeeeb', '#cfcdc8', '#a4a19a', '#746f66', '#474239'] },
 } as const
 export type DensityPalette = keyof typeof densityPalettes
@@ -65,14 +121,14 @@ export function readDensityPalette(value: string | null): DensityPalette {
   return densityPaletteIds.find(palette => palette === value) ?? 'sunset'
 }
 
-export function densityBandIndex(count: number): number {
+export function densityBandIndex(count: number, bands: readonly DensityCountBand[] = []): number {
   let index = 0
-  while (index + 1 < densityCountBands.length && count >= densityCountBands[index + 1].min) index++
+  while (index + 1 < bands.length && count > bands[index].max) index++
   return index
 }
 
-export function densityColor(count: number, palette: DensityPalette = 'sunset'): string {
-  return densityPalettes[palette].colors[densityBandIndex(count)]
+export function densityColor(count: number, palette: DensityPalette = 'sunset', bands: readonly DensityCountBand[] = []): string {
+  return densityPalettes[palette].colors[bands[densityBandIndex(count, bands)]?.colorIndex ?? 2]
 }
 
 /** Shared translucent hex fill; outlines and count labels remain opaque. */
@@ -80,8 +136,8 @@ export function densityFillColor(color: string): string {
   return `${color}9e`
 }
 
-export function densityFill(count: number, palette: DensityPalette = 'sunset'): string {
-  return densityFillColor(densityColor(count, palette))
+export function densityFill(count: number, palette: DensityPalette = 'sunset', bands: readonly DensityCountBand[] = []): string {
+  return densityFillColor(densityColor(count, palette, bands))
 }
 
 export const clusterCountExamples = [1, 10, 100, 1000] as const

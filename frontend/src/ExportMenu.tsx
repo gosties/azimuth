@@ -1,3 +1,4 @@
+import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Download } from 'lucide-react'
 import { api, errorText } from './api'
@@ -12,7 +13,7 @@ function BrowserExport({ session }: { session: string }) {
   const [selected, setSelected] = useState(() => search?.datasets.map(dataset => dataset.id) ?? [])
   const panel = useId()
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageProps] = useTransientMessage('', 6000, busy)
   const [error, setError] = useState('')
   const pending = useRef<AbortController | null>(null)
   useEffect(() => () => pending.current?.abort(), [])
@@ -38,7 +39,7 @@ function BrowserExport({ session }: { session: string }) {
       finally { pending.current = null; setBusy(false) }
     }}><Download size={14}/>{busy ? 'Preparing local download…' : 'Download results locally (JSON)'}</button>
     {busy && <button className="button subtle" onClick={() => pending.current?.abort()}>Cancel download</button>}
-    {message && <p className="quiet" role="status">{message}</p>}
+    {message && <p className="quiet" role="status" {...messageProps}>{message}</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}
     </div>
   </div>
@@ -52,7 +53,7 @@ function SharedExport({ session }: {session: string}) {
   const { config, session: search, datasets, categories } = useWorkspace()
   const [selected, setSelected] = useState(() => search?.datasets.map(dataset => dataset.id) ?? [])
   const [format, setFormat] = useState('csv')
-  const [staged, setStaged] = useState(false)
+  const [staged, setStaged, stagedProps] = useTransientMessage(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const settings = useRef<HTMLDivElement>(null)
@@ -62,7 +63,7 @@ function SharedExport({ session }: {session: string}) {
   const total = (search?.datasets ?? []).filter(dataset => selected.includes(dataset.id)).reduce((count, dataset) => count + dataset.count, 0)
   const exceedsLimit = limit !== undefined && total > limit
   return <div className="export-menu"><button ref={trigger} type="button" className="button secondary export-trigger" popoverTarget={panel}><Download size={14}/> Export records</button>
-    {staged && <p className="quiet export-staged" role="status">Export staged. Check the notification bell for updates or <a href="/exports">My exports</a> for progress and downloads.</p>}
+    {staged && <p className="quiet export-staged" role="status" {...stagedProps}>Export staged. Check the notification bell for updates or <a href="/exports">My exports</a> for progress and downloads.</p>}
     <div ref={settings} id={panel} popover="auto" className="export-settings" role="group" aria-label="Record export settings">
       <ExportSelection results={search?.datasets ?? []} datasets={datasets ?? []} categories={categories ?? []} selected={selected} onChange={setSelected} disabled={busy}/>
       <label>Format<select aria-label="Export format" value={format} disabled={busy} onChange={event => setFormat(event.target.value)}>

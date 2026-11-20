@@ -16,3 +16,4 @@ portalocker[win32]==4.4.2
 rich==15.0.0
 tzdata==2026.6
 boto3==1.43.117
+Pillow==13.0.0
