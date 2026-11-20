@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type FocusEvent, type SetStateAction } from 'react'
 
 /** Routine feedback expires after six visible, uninterrupted seconds. */
-export function useTransientMessage<T = string>(initial: T = '' as T, duration = 6000, paused = false) {
+export function useTransientMessage<T = string>(initial: T = '' as T, duration = 6000, paused = false, pauseOnInteraction = true) {
   const [entry, setEntry] = useState({ value: initial, revision: 0 })
   const [interaction, setInteraction] = useState({ hover: false, focus: false, background: false })
   const [ownerWindow, setOwnerWindow] = useState<Window | null>(() => typeof window === 'undefined' ? null : window)
@@ -29,11 +29,11 @@ export function useTransientMessage<T = string>(initial: T = '' as T, duration =
   }, [ownerWindow])
   useEffect(() => {
     if (revision.current !== entry.revision) { remaining.current = duration; revision.current = entry.revision }
-    if (!entry.value || paused || interaction.hover || interaction.focus || interaction.background) return
+    if (!entry.value || paused || pauseOnInteraction && (interaction.hover || interaction.focus || interaction.background)) return
     const start = Date.now()
     const timer = setTimeout(() => setMessage(initial), Math.max(0, remaining.current))
     return () => { clearTimeout(timer); remaining.current = Math.max(0, remaining.current - (Date.now() - start)) }
-  }, [entry.revision, entry.value, duration, initial, interaction, paused, setMessage])
+  }, [entry.revision, entry.value, duration, initial, interaction, paused, pauseOnInteraction, setMessage])
   const noticeProps = {
     ref: useCallback((node: HTMLElement | null) => {
       if (node) setOwnerWindow(node.ownerDocument.defaultView)

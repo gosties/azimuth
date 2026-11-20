@@ -3,7 +3,11 @@ import type { GisWorkerResult } from './gisTypes'
 export { GIS_LIMITS } from './gisTypes'
 export type { GisScan, GisLayer, GisImportOptions } from './gisTypes'
 
-export async function convertGisFiles(files: File[], layerId: string | undefined, signal: AbortSignal): Promise<GisWorkerResult> {
+export function inventoryGisFiles(files: File[], signal: AbortSignal): Promise<GisWorkerResult> {
+  return convertGisFiles(files, undefined, signal, true)
+}
+
+export async function convertGisFiles(files: File[], layerId: string | undefined, signal: AbortSignal, metadataOnly = false): Promise<GisWorkerResult> {
   signal.throwIfAborted()
   const source = classifyGisFiles(files)
   if (source.format === 'KML') {
@@ -25,7 +29,7 @@ export async function convertGisFiles(files: File[], layerId: string | undefined
       const message = event.data as { result?: GisWorkerResult; error?: string }
       if (message.error) finish(Error(message.error)); else if (message.result) finish(undefined, message.result)
     }
-    worker.postMessage({ files, source, layerId })
+    worker.postMessage({ files, source, layerId, metadataOnly })
     if (signal.aborted) abort()
   })
 }

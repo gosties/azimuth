@@ -1,3 +1,4 @@
+import { ColumnChoices } from './ColumnChoices'
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ChevronRight, CircleDot, Columns3, Download, ListFilter, MapPin, Rows3, Search } from 'lucide-react'
@@ -218,15 +219,7 @@ function DatasetRows({ dataset, session, height, setHeight }: {dataset: DatasetR
     {hidden && <details className="column-chooser">
       <summary><Columns3 size={14}/> Columns{hidden.size > 0 && <span className="quiet"> · {hidden.size} hidden</span>}</summary>
       <div className="column-controls">
-        <div className="choice-actions"><button className="text-button" onClick={() => setEditing(new Set())}>Show all</button>
-          <button className="text-button" disabled={!columns.length} onClick={() => setEditing(new Set(columns.map(column => sourceKey(column.name))))}>Show essential</button></div>
-        <div className="column-options">{choices.map(column => <label key={column.key}><input type="checkbox" disabled={busy} checked={!editing.has(column.key)}
-          onChange={event => {
-            const next = new Set(editing)
-            if (event.target.checked) next.delete(column.key)
-            else next.add(column.key)
-            setEditing(next)
-          }}/>{column.name}</label>)}</div>
+        <ColumnChoices choices={choices} hidden={editing} change={setEditing} disabled={busy} essential={coreColumns.map(column => column.key)}/>
         <button className="button secondary" disabled={!changed || busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Apply columns'}</button>
       </div>
     </details>}

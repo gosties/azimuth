@@ -1,7 +1,7 @@
 import initGdal from 'gdal3.js'
 import wasmURL from 'gdal3.js/dist/package/gdal3WebAssembly.wasm?url'
 import dataURL from 'gdal3.js/dist/package/gdal3WebAssembly.data?url'
-import { GIS_LIMITS } from './gisTypes'
+import { GIS_LIMITS, gisFieldSupported } from './gisTypes'
 import type { GisSource, GisLayer, GisWorkerResult } from './gisTypes'
 import { parseKml } from './kml'
 import { gisDriverPolicy, verifyGisDrivers } from './gisDrivers'
@@ -18,9 +18,10 @@ XMLHttpRequest.prototype.open = function(method: string, url: string | URL, asyn
 
 scope.onmessage = async event => {
   try {
-    const { files, source, layerId } = event.data as { files: File[]; source: GisSource; layerId?: string }
+    const { files, source, layerId, metadataOnly = false } = event.data as { files: File[]; source: GisSource; layerId?: string; metadataOnly?: boolean }
     if (source.format === 'KML') {
       const result = parseKml(await files[0].text(), source.primary)
+      if (metadataOnly) result.outputs = []
       if (layerId && !result.layers.some(l => l.id === layerId)) throw Error('The selected KML layer is no longer present.')
       scope.postMessage({ result }); return
     }
@@ -37,7 +38,15 @@ scope.onmessage = async event => {
     } else opened = await gdal.open(mounted as unknown as FileList)
     const dataset = opened.datasets.find(d => d.type === 'vector')
     if (!dataset) throw Error('This source contains no readable vector layers.')
-    const info = await gdal.ogrinfo(dataset, ['-al', '-so']) as { layers?: OgrLayer[] }
+    let chosenName: string | undefined
+    if (layerId) {
+      let selection: unknown
+      try { selection = JSON.parse(layerId) } catch { throw Error('Choose a layer from this source inventory.') }
+      if (!Array.isArray(selection) || selection.length !== 2 || selection[0] !== source.primary || typeof selection[1] !== 'string') throw Error('Choose a layer from this source inventory.')
+      chosenName = selection[1]
+    }
+    const info = await gdal.ogrinfo(dataset, chosenName ? ['-so', dataset.path, chosenName] : metadataOnly ? ['-al', '-so', '-nocount', '-noextent'] : ['-al', '-so']) as { layers?: OgrLayer[] }
+    if (chosenName && (info.layers?.length !== 1 || info.layers[0].name !== chosenName)) throw Error('The source reader could not isolate the selected layer. Choose it again from the source inventory.')
     if (!info.layers?.length || info.layers.length > GIS_LIMITS.layers) throw Error('Choose a source containing 1–32 vector layers.')
     const result: GisWorkerResult = { layers: [], warnings: [], outputs: [] }
     let outputBytes = 0
@@ -47,17 +56,17 @@ scope.onmessage = async event => {
       const authority = geometry?.coordinateSystem?.projjson?.id
       const crs = authority ? authority.authority + ':' + authority.code : geometry?.coordinateSystem?.wkt || (['GeoJSON', 'KML'].includes(source.format) ? 'EPSG:4326' : null)
       const id = JSON.stringify([source.primary, layer.name])
-      const value: GisLayer = { id, name: layer.name, geometryType: geometry?.type ?? 'Unknown', featureCount: layer.featureCount, crs, fields: layer.fields ?? [], importable: true }
+      const countKnown = Number.isSafeInteger(layer.featureCount) && layer.featureCount >= 0
+      const value: GisLayer = { id, name: layer.name, geometryType: geometry?.type ?? 'Unknown', featureCount: countKnown ? layer.featureCount : 0, ...(metadataOnly ? { featureCountKnown: countKnown } : {}), crs, fields: layer.fields ?? [], importable: true }
       if (!crs) { value.importable = false; value.reason = 'The source coordinate system is missing. Provide its projection definition; coordinates are never guessed.' }
-      else if (!Number.isSafeInteger(layer.featureCount) || layer.featureCount < 1 || layer.featureCount > GIS_LIMITS.rows) { value.importable = false; value.reason = layer.featureCount === 0 ? 'The layer is empty. Choose a layer containing point features.' : 'Layer exceeds the 500,000-feature conversion limit.' }
+      else if ((!metadataOnly || countKnown) && (!countKnown || layer.featureCount < 1 || layer.featureCount > GIS_LIMITS.rows)) { value.importable = false; value.reason = layer.featureCount === 0 ? 'The layer is empty. Choose a layer containing point features.' : 'Layer exceeds the 500,000-feature conversion limit.' }
       else if ((layer.geometryFields?.length ?? 0) > 1 || /Measured|\bM\b|ZM/i.test(value.geometryType)) { value.importable = false; value.reason = 'Multiple geometry fields and measured coordinates are not supported.' }
-      else if (!/^(?:3D )?(?:Point|MultiPoint|Unknown|Unknown \(any\))$/i.test(value.geometryType)) { value.importable = false; value.reason = 'This layer is not a point layer. Line and polygon search is not implemented; centroids are not substituted.' }
-      else if (value.fields.some(f => !['String', 'Integer', 'Integer64', 'Real', 'Date', 'DateTime'].includes(f.type) || f.subtype === 'JSON')) { value.importable = false; value.reason = 'The layer contains unsupported binary, list or structured attributes. Export scalar attributes before conversion.' }
-      else if (value.fields.some(f => f.name.toLowerCase().startsWith('_azimuth_') || f.name.startsWith('__azimuth_'))) { value.importable = false; value.reason = 'Field names beginning _azimuth_ are reserved for conversion metadata. Rename these fields first.' }
+      else if (!/^(?:3D )?(?:Point|MultiPoint|Unknown|Unknown \(any\))$/i.test(value.geometryType)) { value.importable = false; value.reason = 'This layer is not a point layer. Choose a point layer; line and polygon geometry is skipped without conversion.' }
       else if (new Set(value.fields.map(f => f.name.toLowerCase())).size !== value.fields.length || value.fields.length > 240) { value.importable = false; value.reason = 'The layer has too many fields or names differing only by letter case.' }
+      if (value.fields.some(field => !gisFieldSupported(field))) result.warnings.push(layer.name + ': Unsupported or reserved attributes can be excluded when choosing fields; source values are not coerced.')
       if (remainingReason && value.importable) { value.importable = false; value.reason = remainingReason }
       result.layers.push(value)
-      if (!value.importable || (layerId && id !== layerId)) continue
+      if (metadataOnly || !value.importable || (layerId && id !== layerId)) continue
       try {
         const output = await gdal.ogr2ogr(dataset, ['-f', 'GeoJSON', '-t_srs', 'EPSG:4326', '-lco', 'RFC7946=NO', '-lco', 'COORDINATE_PRECISION=17', '-lco', 'SIGNIFICANT_FIGURES=17', '-preserve_fid', layer.name], 'azimuth_' + index)
         const listed = (await gdal.getOutputFiles()).find(f => f.path === output.local)

@@ -60,7 +60,7 @@ class Settings:
     auth_session_ttl_sec: int = 8 * 60 * 60
     auth_cookie_secure: bool = True
     auth_origins: list[str] = field(default_factory=list)
-    max_map_points: int = 100_000
+    max_map_points: int = 250_000
     map_known_count_min_rows: int = 1_000_000
     wide_value_preview_chars: int = 2048
     wide_response_budget_bytes: int = 8 * 1024 * 1024
@@ -263,8 +263,8 @@ class Settings:
                 raise ValueError(f"{name} must be an integer between 1 and {maximum}")
         if not 0 <= self.partition_resolution <= 15:
             raise ValueError("partition_resolution must be between 0 and 15")
-        if type(self.max_map_points) is not int or not 1 <= self.max_map_points <= 2**31 - 1:
-            raise ValueError("max_map_points must be an integer between 1 and 2147483647")
+        if type(self.max_map_points) is not int or not 1 <= self.max_map_points <= 250_000:
+            raise ValueError("max_map_points must be an integer between 1 and 250000")
         if not 1 <= self.wide_value_preview_chars <= 8192:
             raise ValueError("wide_value_preview_chars must be between 1 and 8192")
         if self.wide_response_budget_bytes < 65536:

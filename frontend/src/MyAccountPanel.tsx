@@ -1,6 +1,7 @@
+import { ColumnChoices } from './ColumnChoices'
 import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useState } from 'react'
-import { Columns3, RefreshCw, RotateCcw, UserRound, X } from 'lucide-react'
+import { Columns3, KeyRound, RefreshCw, RotateCcw, UserRound, X } from 'lucide-react'
 import { api, errorText, type Column } from './api'
 import { roleLabels, useWorkspace } from './workspace'
 import './MyAccountPanel.css'
@@ -17,6 +18,45 @@ const columnLabel = (key: string) => coreColumns.find(column => column.key === k
 
 function changedPreferences(tableId?: string) {
   window.dispatchEvent(new CustomEvent('azimuth-table-preferences', { detail: { tableId } }))
+}
+
+function PasswordSettings() {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage, messageProps] = useTransientMessage('')
+
+  return <div className="my-account-password">
+    {open ? <form className="my-account-editor" aria-label="Change password" onSubmit={async event => {
+      event.preventDefault()
+      if (busy) return
+      const values = new FormData(event.currentTarget)
+      const password = String(values.get('password'))
+      if (password !== values.get('confirm_password')) {
+        setError('The new passwords must match.')
+        return
+      }
+      setError('')
+      setBusy(true)
+      try {
+        await api.changePassword(String(values.get('current_password')), password)
+        setOpen(false)
+        setMessage('Password changed. Your other sessions have been signed out.')
+      } catch (failure) { setError(errorText(failure)) }
+      finally { setBusy(false) }
+    }}>
+      <h3>Change password</h3>
+      <label>Current password<input name="current_password" type="password" autoComplete="current-password" required maxLength={1024} disabled={busy}/></label>
+      <label>New password<input name="password" type="password" autoComplete="new-password" required maxLength={1024} disabled={busy}/></label>
+      <label>Confirm new password<input name="confirm_password" type="password" autoComplete="new-password" required maxLength={1024} disabled={busy}/></label>
+      {error && <p className="inline-error" role="alert">{error}</p>}
+      <div className="my-account-actions">
+        <button className="button primary" type="submit" disabled={busy}>{busy ? 'Changing password…' : 'Save new password'}</button>
+        <button className="button secondary" type="button" disabled={busy} onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </form> : <button className="button secondary" type="button" onClick={() => { setError(''); setMessage(''); setOpen(true) }}><KeyRound size={14}/> Change password</button>}
+    {message && <p className="quiet" role="status" {...messageProps}>{message}</p>}
+  </div>
 }
 
 export function MyAccountPanel() {
@@ -85,6 +125,7 @@ export function MyAccountPanel() {
   return <section className="panel-pad my-account-panel">
     <div className="section-heading"><div><h2>My account</h2><p>Your account and saved table columns.</p></div><span className="heading-icon"><UserRound size={17}/></span></div>
     <dl className="my-account-identity"><div><dt>Email</dt><dd>{user.email}</dd></div><div><dt>Role</dt><dd>{roleLabels[user.role]}</dd></div></dl>
+    <PasswordSettings/>
     <div className="my-account-preferences-heading"><h3>Saved column choices</h3><button className="icon-button" aria-label="Refresh saved column choices" disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={14}/></button></div>
     <p className="quiet">Column choices apply to your search result tables.</p>
     {error && <p className="inline-error" role="alert">{error}</p>}
@@ -123,14 +164,7 @@ export function MyAccountPanel() {
       <p className="quiet">Choose the columns to show.</p>
       {columnError && <p className="inline-error" role="alert">{columnError} <button type="button" className="text-button" onClick={() => setColumnRevision(value => value + 1)}>Retry columns</button></p>}
       {!columns && !columnError && <p className="quiet" role="status">Loading published columns…</p>}
-      {columns && <><div className="choice-actions"><button type="button" className="text-button" disabled={busy} onClick={() => setEditing(new Set())}>Show all</button>
-        <button type="button" className="text-button" disabled={busy} onClick={() => setEditing(new Set(columns.map(column => 'source:' + column.name)))}>Show essential</button></div>
-        <div className="column-options">{choices.map(column => <label key={column.key}><input type="checkbox" disabled={busy} checked={!editing.has(column.key)} onChange={event => {
-          const next = new Set(editing)
-          if (event.currentTarget.checked) next.delete(column.key)
-          else next.add(column.key)
-          setEditing(next)
-        }}/>{column.name}</label>)}</div>
+      {columns && <><ColumnChoices choices={choices} hidden={editing} change={setEditing} disabled={busy} essential={coreColumns.map(column => column.key)}/>
         <div className="my-account-actions"><button className="button primary" type="submit" disabled={busy || !changed}>{busy ? 'Saving…' : 'Save column choices'}</button>
           <button className="button secondary" type="button" disabled={busy} onClick={() => setEditor(null)}>Cancel</button></div></>}
     </form>}

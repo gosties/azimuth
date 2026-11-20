@@ -121,7 +121,7 @@ export function visibleRange(rows: readonly { id: string }[], anchor: string | n
   return start < 0 || end < 0 ? [id] : rows.slice(Math.min(start, end), Math.max(start, end) + 1).map(row => row.id)
 }
 
-export function readSearchLink(search: string): {draft: Draft; autoload: boolean} {
+export function readSearchLink(search: string): {draft: Draft; autoload: boolean; dataset_ids?: string[]; local_omitted?: boolean} {
   const params = new URLSearchParams(search)
   const coordinate = params.get('q')?.trim() ?? ''
   const unit = params.get('unit') ?? defaultDraft.unit
@@ -129,20 +129,31 @@ export function readSearchLink(search: string): {draft: Draft; autoload: boolean
   const validUnit = Object.hasOwn(units, unit)
   const validRadius = /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(radius) && Number.isFinite(Number(radius)) && Number(radius) > 0
   const validCoordinate = coordinate.length > 0 && coordinate.length <= 256
+  const scoped = params.get('scope') === 'selected'
+  const ids = params.getAll('dataset').filter(id => !!id && !id.startsWith('local:'))
+  const validScope = !scoped || ids.length === params.getAll('dataset').length
   return {
     draft: { coordinate: validCoordinate ? coordinate : '', radius: validRadius ? radius : defaultDraft.radius, unit: validUnit ? unit as RadiusUnit : defaultDraft.unit,
       ...(params.get('start_at') || params.get('end_at') ? { temporal: { enabled: true, mode: 'range' as const, start: params.get('start_at') ?? '', end: params.get('end_at') ?? '' } } : {}),
-      ...(params.get('lookup') === 'single_file' ? { lookup_mode: 'single_file' } : {}) },
-    autoload: params.get('autoload') === '1' && validCoordinate && validUnit && validRadius,
+      ...(params.get('lookup') === 'single_file' || params.get('lookup') === 'partitioned' ? { lookup_mode: params.get('lookup') as LookupMode } : {}) },
+    autoload: params.get('autoload') === '1' && validCoordinate && validUnit && validRadius && validScope && (!scoped || ids.length > 0),
+    ...(scoped ? { dataset_ids: ids } : {}),
+    ...(params.get('local_omitted') === '1' ? { local_omitted: true } : {}),
   }
 }
 
-export function searchLink(draft: Draft, origin: string) {
+export function searchLink(draft: Draft, origin: string, datasetIds?: string[] | null, localOmitted = false) {
   const url = new URL('/', origin)
   const center = pickedCenter(draft)
   const q = center ? center.latitude + ', ' + center.longitude : draft.coordinate.trim()
   url.search = new URLSearchParams({ q, r: draft.radius, unit: draft.unit, autoload: '1',
-    ...(draft.lookup_mode === 'single_file' ? { lookup: draft.lookup_mode } : {}) }).toString()
+    ...(draft.lookup_mode ? { lookup: draft.lookup_mode } : {}) }).toString()
+  if (datasetIds !== undefined && datasetIds !== null) {
+    url.searchParams.set('scope', 'selected')
+    for (const id of datasetIds) if (!id.startsWith('local:')) url.searchParams.append('dataset', id)
+    if (!url.searchParams.has('dataset')) url.searchParams.delete('autoload')
+  }
+  if (localOmitted || datasetIds?.some(id => id.startsWith('local:'))) url.searchParams.set('local_omitted', '1')
   const filter = normalizeTimeFilter(resolveTemporal(draft.temporal))
   if (filter?.start_at) url.searchParams.set('start_at', filter.start_at)
   if (filter?.end_at) url.searchParams.set('end_at', filter.end_at)

@@ -1,8 +1,9 @@
-import { LOCAL_LIMITS } from './localCatalogs/format'
+import type { GridRequest, GridSummary } from './mapGrid'
+import { MAX_MAP_POINTS } from './mapPointLimits'
 import type { Dataset, SearchQuery, Session, ThinRow, Viewport, PointChunk, PointProgress, Points, Page } from './api'
 
 export type CatalogSearchRemote = Pick<typeof import('./api').remoteApi,
-  'datasets' | 'search' | 'cancel' | 'timeFilter' | 'tableRows' | 'record' | 'field' | 'overlaps' | 'points' | 'streamPoints'>
+  'datasets' | 'search' | 'cancel' | 'timeFilter' | 'tableRows' | 'record' | 'field' | 'overlaps' | 'points' | 'streamPoints' | 'aggregates'>
 export type CatalogSearchLocal = Omit<CatalogSearchRemote, 'datasets' | 'streamPoints'> & {
   listDatasets: () => Promise<Dataset[]> | Dataset[]
 }
@@ -17,7 +18,6 @@ const localId = (id: string) => id.startsWith('local:')
 const localSession = (id: string) => id.startsWith('local-search:')
 const synthetic = (id: string) => id.startsWith('federated:')
 const MAX_SESSIONS = 128
-const MAX_POINTS = 100000
 const sum = (values: number[]) => {
   const total = values.reduce((a, b) => a + b, 0)
   if (!values.every(value => Number.isSafeInteger(value) && value >= 0) || !Number.isSafeInteger(total)) throw new Error('Search count exceeds the supported exact range.')
@@ -81,7 +81,22 @@ export function createCatalogSearch(remote: CatalogSearchRemote, local: CatalogS
     })
     const order = new Map(datasets.map((dataset, index) => [dataset.id, index]))
     const rows = children.flatMap(child => child.session.rows).sort((a, b) => (order.get(a.table_id)! - order.get(b.table_id)!)).slice(0, 100)
-    const result: Session = { id, datasets, rows, total: sum(children.map(child => child.session.total)),
+    const total = sum(children.map(child => child.session.total))
+    // Apportion the preview by matching records so shared and private layers both contribute.
+    let remaining = Math.min(3000, total)
+    let population = total
+    const preview = children.flatMap(({ session }) => {
+      const available = session.map_preview ?? []
+      const share = population ? Math.round(remaining * session.total / population) : 0
+      const take = Math.min(available.length, share)
+      remaining -= take
+      population -= session.total
+      return available.slice(0, take)
+    })
+    const result: Session = { id, datasets, rows, total,
+      ...(children.every(child => child.session.total === 0 || child.session.map_preview) ? {
+        map_preview: preview,
+      } : {}),
       publication_id: id, expires_at: new Date(Math.min(...children.map(child => Date.parse(child.session.expires_at)))).toISOString(),
       next_cursor: null, temporal_dataset_ids: children.flatMap(child => child.session.temporal_dataset_ids ?? []),
       lookup_mode: children[0].session.lookup_mode, time_filter: children[0].session.time_filter }
@@ -161,9 +176,6 @@ export function createCatalogSearch(remote: CatalogSearchRemote, local: CatalogS
     const matched_total = sum(probes.map(probe => probe.matched_total))
     let remaining = through
     const allocations = probes.map(probe => { const take = Math.min(remaining, probe.matched_total); remaining -= take; return take })
-    if (chosen.some(({child}, index) => child.kind === 'local' && allocations[index] > LOCAL_LIMITS.points)) {
-      throw new Error('Local map results are limited to 10,000 points. Lower the map budget or select fewer datasets.')
-    }
     const rows = await Promise.all(chosen.map(async ({child, ids}, index) => {
       const take = allocations[index]
       if (!take) return []
@@ -181,10 +193,11 @@ export function createCatalogSearch(remote: CatalogSearchRemote, local: CatalogS
     return {items, matched_total, returned: items.length, truncated: items.length < matched_total}
   }
   const points: CatalogSearchRemote['points'] = (id, viewport, limit, signal, ids) => {
-    if (!Number.isSafeInteger(limit) || limit < 0 || limit > MAX_POINTS) return Promise.reject(new Error('The map point budget must be between 0 and 100000.'))
+    if (!Number.isSafeInteger(limit) || limit < 0 || limit > MAX_MAP_POINTS) return Promise.reject(new Error('The map point budget must be between 0 and 250,000.'))
     return gather(id, structuredClone(viewport), limit, signal, ids && [...ids])
   }
   const streamPoints: CatalogSearchRemote['streamPoints'] = async (id, viewport, limit, signal, onChunk, ids, cursor) => {
+    if (!Number.isSafeInteger(limit) || limit < 0 || limit > MAX_MAP_POINTS) throw new Error('The map point budget must be between 0 and 250,000.')
     const entry = resolve(id)
     if (!entry || (entry.children.length === 1 && entry.children[0].kind === 'shared')) {
       if (ids?.some(localId)) throw new Error('A local dataset requires its local search snapshot.')
@@ -193,7 +206,7 @@ export function createCatalogSearch(remote: CatalogSearchRemote, local: CatalogS
     const scope = scopeKey(viewport, ids)
     const checkpoint = cursor ? readCursor(entry, cursor, 'points') : {session: id, scope, offset: 0}
     if (checkpoint.session !== id || checkpoint.scope !== scope || checkpoint.offset === undefined || !Number.isSafeInteger(checkpoint.offset) || checkpoint.offset < 0) throw new Error('The viewport cursor does not match this search.')
-    if (!Number.isSafeInteger(limit) || limit < 0 || checkpoint.offset + limit > MAX_POINTS) throw new Error('The map point budget must be between 0 and 100000.')
+    if (checkpoint.offset + limit > MAX_MAP_POINTS) throw new Error('The map point budget must be between 0 and 250,000.')
     const result = await gather(id, structuredClone(viewport), checkpoint.offset + limit, signal, ids && [...ids])
     if (checkpoint.offset > result.returned) throw new Error('Invalid viewport cursor offset.')
     let returned = checkpoint.offset
@@ -207,6 +220,33 @@ export function createCatalogSearch(remote: CatalogSearchRemote, local: CatalogS
     signal.throwIfAborted()
     return progress()
   }
+  async function aggregates(id: string, grid: GridRequest, signal: AbortSignal, datasetIds?: string[]): Promise<GridSummary> {
+    const entry = resolve(id)
+    if (!entry) {
+      if (datasetIds?.some(localId)) throw fail()
+      return remote.aggregates(id, grid, signal, datasetIds)
+    }
+    const selected = entry.children.map(child => ({ child, ids: child.session.datasets.map(dataset => dataset.id).filter(key => !datasetIds || datasetIds.includes(key)) }))
+      .filter(part => part.ids.length)
+    let columns = grid.columns
+    let parts: GridSummary[] = []
+    for (;;) {
+      parts = await Promise.all(selected.map(({ child, ids }, index) => parts[index]?.columns === columns ? parts[index]
+        : provider(child.kind).aggregates(child.session.id, { ...grid, columns }, signal, ids)))
+      signal.throwIfAborted()
+      if (generation !== entry.generation || sessions.get(id) !== entry) throw fail()
+      if (parts.some(part => !Number.isSafeInteger(part.columns) || part.columns < 1 || part.columns > columns || part.mode !== grid.mode)) {
+        throw Error('Invalid map grid returned for this viewport.')
+      }
+      const common = Math.min(columns, ...parts.map(part => part.columns))
+      if (common === columns) break
+      columns = common
+    }
+    const items = parts.flatMap(part => part.items)
+    return { mode: grid.mode, columns, items, cell_count: new Set(items.map(item => item.q + ':' + item.r)).size,
+      matched_total: sum(parts.map(part => part.matched_total)) }
+  }
+
   const overlaps: CatalogSearchRemote['overlaps'] = async (id, point, cursor, signal) => {
     const entry = resolve(id)
     if (!entry) return remote.overlaps(id, point, cursor, signal)
@@ -230,7 +270,7 @@ export function createCatalogSearch(remote: CatalogSearchRemote, local: CatalogS
 
   }
   return {
-    search, timeFilter, points, streamPoints, overlaps,
+    search, timeFilter, points, streamPoints, overlaps, aggregates,
     cancel: async (id: string) => {
       const entry = resolve(id)
       if (!entry) return remote.cancel(id)

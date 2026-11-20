@@ -13,22 +13,24 @@ export function MapAggregateInspector({ group, mode, datasets, colorFor, close, 
   colorFor: (id: string) => string; close: () => void; zoom: () => void; choose: (row: ThinRow) => void
 }) {
   const [page, setPage] = useState(0)
-  const members = group.get('members') as readonly Feature<Point>[]
+  const summary = group.get('summary') === true
+  const members = (group.get('members') ?? []) as readonly Feature<Point>[]
   const counts = group.get('datasetCounts') as Record<string, number>
   const name = (id: string) => datasets.find(dataset => dataset.id === id)?.name ?? id
   const bounds = group.get('bounds') as number[]
   const coincident = bounds[0] === bounds[2] && bounds[1] === bounds[3]
-  return <aside className="az-aggregate-inspector point-popup" aria-label="Loaded point group" onKeyDown={event => {
+  return <aside className="az-aggregate-inspector point-popup" aria-label={summary ? "Matching point group" : "Loaded point group"} onKeyDown={event => {
     if (event.key === 'Escape') { event.stopPropagation(); close() }
   }}>
-    <header><strong>{mode === 'hexes' ? 'Hex bin' : 'Cluster'} · {number.format(members.length)} loaded points</strong>
+    <header><strong>{mode === 'hexes' ? 'Hex bin' : 'Cluster'} · {number.format(summary ? group.get('count') : members.length)} {summary ? 'matching' : 'loaded'} points</strong>
       <button type="button" className="icon-button" aria-label="Close point group" onClick={close}><X size={15}/></button></header>
     <ul className="az-group-datasets">{Object.entries(counts).map(([id, count]) => <li key={id}>
       <span className="az-legend-swatch" style={{ background: colorFor(id) }}/><span>{name(id)}</span><strong>{number.format(count)}</strong>
     </li>)}</ul>
     <button type="button" className="text-button" onClick={zoom}>Zoom to group</button>
-    {coincident && <p>These points share a coordinate. Open a record to browse exact overlaps.</p>}
-    <p>Choose a record:</p>
+    {summary && <p>Switch to Points to inspect individual records in this area.</p>}
+    {!summary && coincident && <p>These points share a coordinate. Open a record to browse exact overlaps.</p>}
+    {!summary && <p>Choose a record:</p>}
     <ul className="az-group-records">{members.slice(page * pageSize, (page + 1) * pageSize).map(feature => {
       const row = feature.get('row') as ThinRow
       return <li key={JSON.stringify([row.table_id, row.object_id])}><button type="button" className="text-button" onClick={() => choose(row)}>

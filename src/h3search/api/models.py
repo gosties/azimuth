@@ -136,6 +136,17 @@ class PointsInput(Input):
     dataset_ids: list[UUID] | None = Field(default=None, max_length=1000)
 
 
+class AggregatesInput(Input):
+    west: float = Field(ge=-180, le=180, strict=True)
+    south: float = Field(ge=-90, le=90, strict=True)
+    east: float = Field(ge=-180, le=180, strict=True)
+    north: float = Field(ge=-90, le=90, strict=True)
+    zoom: float = Field(ge=0, le=30, strict=True)
+    mode: Literal["clusters", "hexes"]
+    columns: int = Field(ge=1, le=2**40, strict=True)
+    dataset_ids: list[UUID] | None = Field(default=None, max_length=1000)
+
+
 class PointsStreamInput(PointsInput):
     limit: int = Field(default=3000, ge=0, strict=True)
     cursor: str | None = Field(default=None, max_length=768)

@@ -74,6 +74,14 @@ export function parseKml(text: string, fileName: string): GisWorkerResult {
   if (!placemarks.length || placemarks.length > GIS_LIMITS.rows) throw Error('KML must contain between 1 and 500,000 Placemarks.')
   if (document.getElementsByTagNameNS('*', 'NetworkLink').length) throw Error('KML NetworkLinks are not supported.')
   if (document.getElementsByTagNameNS('*', 'GroundOverlay').length || document.getElementsByTagNameNS('*', 'PhotoOverlay').length) throw Error('KML overlays are not supported. Export a point layer first.')
+  // Classify ineligible geometry before asking the converter to materialize it.
+  // A skipped source retains its feature count and explanation in the layer review.
+  if (placemarks.some(placemark => sourcePoint(placemark) === null)) {
+    const name = fileName.replace(/\.kml$/i, '') || 'KML layer'
+    return { layers: [{ id: JSON.stringify([fileName, name]), name, geometryType: 'Mixed / unsupported',
+      featureCount: placemarks.length, crs: 'EPSG:4326', importable: false, fields: [],
+      reason: 'Every KML Placemark must contain exactly one valid point location. Lines, polygons, missing geometries and multiple-location geometries are skipped; centroids are never substituted.' }], warnings: [], outputs: [] }
+  }
   const declared = new Set<string>()
   for (const field of Array.from(document.getElementsByTagNameNS('*', 'SimpleField'))) {
     const name = field.getAttribute('name')

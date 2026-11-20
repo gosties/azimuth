@@ -1,0 +1,87 @@
+.repository-browser{container-type:inline-size}
+.repository-browser .repository-browser-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto;margin-bottom:10px}
+.repository-browser .repository-browser-heading h3{margin:0}
+.repository-browse-actions,.repository-folder-navigation{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:0 0 auto}
+.repository-browse-actions .button,.repository-folder-navigation .button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:29px;padding:5px 9px;font-size:11px}
+.repository-browser>.quiet{margin:8px 0;color:var(--muted)}
+.repository-browser .repository-folder-toolbar{padding:6px 0;gap:5px}
+.repository-browser .repository-folder-toolbar nav{max-height:65px;overflow:auto}
+.repository-browser .repository-source-tree{display:block;margin:4px 0;list-style:none;padding:0}
+.repository-browser .repository-source-tree>li{border-bottom:1px solid var(--line)}
+.repository-browser .repository-source-button{display:grid;grid-template-columns:minmax(0,1fr) 62px 18px;align-items:center;gap:8px;width:100%;min-height:34px;padding:6px 5px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--ink);font:inherit;font-size:11px;text-align:left;cursor:pointer;overflow-wrap:normal}
+.repository-browser .repository-source-button:hover,.repository-browser .repository-source-button:focus-visible{background:var(--surface);border-color:var(--strong-line)}
+.repository-browser .repository-source-button:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
+.repository-browser .repository-source-name{display:flex;align-items:center;gap:6px;min-width:0;font-weight:600}
+.repository-browser .repository-source-name>svg{flex:0 0 auto}
+.repository-browser .repository-source-name>span,.repository-browser .repository-source-type{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.repository-browser .repository-source-type{font-size:10px;color:var(--muted)}
+.repository-browser .repository-source-status{display:flex;align-items:center;gap:5px;min-width:0;color:var(--muted)}
+.repository-browser .repository-source-status>svg{flex:0 0 auto}
+.repository-browser .repository-source-status>span{display:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+.repository-browser .is-candidate .repository-source-name>svg,.repository-browser .is-candidate .repository-source-status{color:var(--amber)}
+.repository-browser .is-container .repository-source-name>svg{color:var(--muted)}
+.repository-browser .is-unavailable .repository-source-button{color:var(--muted);cursor:help}
+.repository-browser .is-unavailable .repository-source-name{font-weight:400}
+.repository-browser .repository-source-button:disabled{opacity:.55;cursor:default}
+.repository-browser .repository-source-reason{display:none;padding:0 5px 7px 26px;margin:0;font-size:10px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+.repository-browser .repository-source-reason.is-visible,.repository-browser .repository-source-button:focus-visible+.repository-source-reason{display:block}
+@container (min-width: 380px){.repository-browser .repository-source-button{grid-template-columns:minmax(0,1fr) 86px 104px}.repository-browser .repository-source-status>span{display:inline}}
+@container (max-width: 210px){.repository-browser .repository-source-button{grid-template-columns:minmax(0,1fr) 45px 14px;gap:4px}.repository-browser .repository-source-name{gap:4px}}
+
+.repository-browser .repository-metadata-error{margin:0;padding:0 5px 7px 26px;font-size:10px;color:var(--muted);overflow-wrap:anywhere}
+
+/* Keep the full geometry legible beneath the name in compact source panes. */
+@container (max-width: 599px){
+.repository-browser .repository-source-button{grid-template-columns:minmax(0,1fr) 18px;gap:3px 8px}
+.repository-browser .repository-source-name{grid-column:1;grid-row:1}
+.repository-browser .repository-source-type{grid-column:1;grid-row:2;padding-left:21px;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.4}
+.repository-browser .repository-source-status{grid-column:2;grid-row:1 / span 2}
+.repository-browser .repository-source-status>span{display:none}
+}
+.repository-browser .repository-source-type{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.4}
+
+.repository-browser .repository-source-button.is-selected{background:var(--surface);border-color:var(--amber);box-shadow:inset 3px 0 var(--amber)}
+.repository-source-open{display:inline-flex;align-items:center;gap:4px;margin:0 0 5px 25px;font-size:11px}
+.repository-source-path{display:block;padding:0 5px 5px 25px;color:var(--muted);overflow-wrap:anywhere}
+.repository-source-filters{display:grid;gap:6px;padding:8px 0}
+.repository-source-filters label{display:grid;gap:4px;font-size:11px}
+.repository-source-filters input{min-width:0;width:100%}
+.repository-source-filters p{margin:0;font-size:10px;line-height:1.4}
+.repository-duplicate-choice{padding:8px;border:1px solid var(--amber);border-radius:4px;font-size:12px}
+.repository-duplicate-choice label{display:flex;align-items:center;gap:6px}
+.repository-duplicate-choice input{width:auto}
+.repository-layer-fields{max-height:220px;overflow:auto;padding-left:18px}
+.repository-layer-fields small{color:var(--muted)}
+
+.repository-search-status{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+.repository-source-filters{grid-template-columns:minmax(0,1fr) auto;gap:4px 6px;padding:5px 0;flex:0 0 auto}
+.repository-source-filters label{min-width:0}
+.repository-source-filters>.button{align-self:end;min-height:30px;padding:5px 7px;font-size:10px;white-space:nowrap}
+.repository-source-filters>.repository-search-scope,.repository-source-filters>p{grid-column:1 / -1}
+.repository-search-scope{font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.repository-browse-details{padding:7px;margin:4px 0 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font-size:11px;overflow-wrap:anywhere}
+.repository-browse-details dl{display:flex;flex-wrap:wrap;gap:4px 12px;margin:5px 0}
+.repository-browse-details dl>div{display:flex;gap:4px}
+.repository-browse-details dt{color:var(--muted)}
+.repository-browse-details dd{margin:0}
+.repository-browse-details p{margin:5px 0;color:var(--muted)}
+.repository-browse-details summary{cursor:pointer}
+.repository-browse-details ul{margin:5px 0;max-height:130px;overflow:auto;padding-left:18px}
+.repository-browse-details small{color:var(--muted)}
+
+.repository-inventory-action{display:flex;align-items:center;gap:8px;margin:0 5px 5px 25px;font-size:10px;color:var(--muted)}
+.repository-inventory-action button{display:inline-flex;align-items:center;gap:4px;font-size:11px}
+.repository-inventory-info{margin:4px 5px 7px;padding:7px;border:1px solid var(--line);border-radius:4px;font-size:11px;max-height:230px;overflow:auto;background:var(--surface)}
+.repository-inventory-info p{margin:4px 0;display:flex;align-items:center;gap:6px}
+.repository-inventory-info ul{padding-left:17px;margin:4px 0 8px}
+.repository-inventory-info small{color:var(--muted)}
+
+.repository-folder-alternative{padding:8px;border:1px solid var(--amber);border-radius:4px;margin-top:7px;font-size:11px;flex:0 0 auto;background:var(--surface)}
+.repository-folder-alternative p{margin:0 0 6px}
+.repository-folder-alternative .button{padding:4px 7px;min-height:26px;font-size:11px}
+.repository-folder-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border:1px dashed var(--strong-line,var(--line));border-radius:5px;margin-top:7px;padding:12px;min-height:135px}
+.repository-folder-drop>svg{color:var(--amber)}
+.repository-folder-drop p{margin:0;font-size:11px;line-height:1.4}
+.repository-folder-drop small{font-size:10px;color:var(--muted)}

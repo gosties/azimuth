@@ -11,5 +11,7 @@
 .my-account-tables p, .my-account-table-title strong { overflow-wrap: anywhere; }
 .my-account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .my-account-editor { background: var(--subtle); }
+.my-account-password form { max-width: 420px; }
+.my-account-password label { display: grid; gap: 4px; }
 .my-account-editor .column-options { max-height: 260px; overflow: auto; }
 .my-account-panel .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }

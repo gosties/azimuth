@@ -34,6 +34,7 @@ import { MapLegend } from './MapLegend'
 import { clusterRadius, datasetColorSlots, densityColor, densityCountBands, densityFill, type DensityCountBand, readDensityPalette, mapColorResolver, readMapPalette, type DensityPalette, type MapPalette } from './mapPalette'
 import { useMapCoordinates } from './mapCoordinates'
 import { PointPopup } from './PointPopup'
+import { useViewportGrid } from './useViewportGrid'
 import { useViewportPoints } from './useViewportPoints'
 import { MapAggregationAccumulator, aggregationResolution, aggregationPixelSize, aggregationGridMetrics, readAggregationSize, type AggregationSize, MERCATOR_WORLD_WIDTH } from './mapAggregation'
 import { MapAggregateInspector } from './MapAggregateInspector'
@@ -141,7 +142,13 @@ export function MapPanel() {
   live.current = workspace
   const { config, session, query, selection, pickCenter, drawCircle, dark, searching } = workspace
   const sessionId = session?.id
-  const matchingDatasets = useMemo(() => session?.datasets.filter(dataset => dataset.count > 0) ?? [], [session?.datasets])
+  const matchingDatasets = useMemo(() => {
+    const inventory = new globalThis.Map(workspace.datasets.map(dataset => [dataset.id, dataset]))
+    return session?.datasets.filter(dataset => dataset.count > 0).map(dataset => {
+      const catalog = inventory.get(dataset.id)
+      return catalog && !dataset.catalog_name ? { ...dataset, catalog_id: catalog.catalog_id, catalog_name: catalog.catalog_name } : dataset
+    }) ?? []
+  }, [session?.datasets, workspace.datasets])
   const paletteKey = workspace.user?.id ? 'azimuth.mapPalette.' + workspace.user.id : null
   const [palette, setPalette] = useState(() => readMapPalette(paletteKey ? readStorage(paletteKey) : null))
   const clusterPaletteKey = workspace.user?.id ? 'azimuth.clusterPalette.' + workspace.user.id : null
@@ -183,7 +190,7 @@ export function MapPanel() {
   const [pointer, setPointer] = useState<Center | null>(null)
   const [menu, setMenu] = useState<MapMenuPosition | null>(null)
   const [preview, setPreview] = useState<CirclePreview | null>(null)
-  const [notice, setNotice, noticeProps] = useTransientMessage('')
+  const [notice, setNotice, noticeProps] = useTransientMessage('', 3000, false, false)
   const [visibility, setVisibility] = useState<{ session: string; hidden: ReadonlySet<string> } | null>(null)
   const hidden = visibility && visibility.session === sessionId ? visibility.hidden : emptyHidden
   const visibleIds = useMemo(() => hidden.size ? matchingDatasets.filter(dataset => !hidden.has(dataset.id)).map(dataset => dataset.id) : undefined, [hidden, matchingDatasets])
@@ -472,8 +479,20 @@ export function MapPanel() {
     source?.addFeatures((workspace.inputCenters ?? []).map(center => new Feature(new Point(project(center)))))
   }, [layers, workspace.inputCenters, workspace.showInputPoints])
 
+  const mapPreview = useMemo(() => session?.map_preview ? {
+    rows: session.map_preview, total: session.total, datasetIds: session.datasets.map(dataset => dataset.id),
+    extent: searchGeometry?.fit.getExtent(),
+  } : undefined, [session, searchGeometry])
+  const fullGrid = displayMode !== 'points' && !!session && session.total > Math.min(pointLimit, 3000)
+  const summary = useViewportGrid(mapRef, layers.aggregates.getSource(), renderVersion, fullGrid ? sessionId : undefined,
+    visibleIds, displayMode, aggregationSize, session?.expires_at)
+  useLayoutEffect(() => {
+    if (!fullGrid) return
+    liveDensityBands.current = summary.bands
+    layers.aggregates.changed()
+  }, [fullGrid, summary.bands, layers])
   const { points, loading, error: pointError, retry: retryPoints } = useViewportPoints(
-    mapRef, layers.points.getSource(), renderVersion, session?.total ? sessionId : undefined, visibleIds, pointLimit,
+    mapRef, layers.points.getSource(), renderVersion, session?.total && !fullGrid ? sessionId : undefined, visibleIds, pointLimit, mapPreview,
   )
 
   const [pointNotice, setPointNotice, pointNoticeProps] = useTransientMessage('')
@@ -485,6 +504,8 @@ export function MapPanel() {
     layers.points.setVisible(displayMode === 'points')
     layers.aggregates.setVisible(displayMode !== 'points')
     setAggregate(null)
+    if (fullGrid) { aggregateCache.current.modes.clear(); return }
+    canonicalCount.current = source.getFeatures().length
     let added: Feature<Point>[] = []
     let removed = false
     function updateDensity(accumulator?: MapAggregationAccumulator) {
@@ -549,7 +570,7 @@ export function MapPanel() {
       source.un('clear', clear)
       source.un('change', change)
     }
-  }, [layers, displayMode, aggregationSize, zoom, renderVersion])
+  }, [layers, displayMode, aggregationSize, zoom, renderVersion, fullGrid])
 
   function zoomAggregate(group: Feature<Point | Polygon>) {
     const view = mapRef.current?.getView()
@@ -633,7 +654,7 @@ export function MapPanel() {
   const grid = displayMode !== 'points' && view?.getResolution() ? aggregationGridMetrics(displayMode, view.getResolution()!, {
     size: aggregationSize, latitude: geographicPoint(view.getCenter() ?? initialCenter).latitude,
   }) : null
-  const groupWidth = grid?.groundCellMeters
+  const groupWidth = grid?.groundCellMeters && fullGrid && summary.columns ? grid.groundCellMeters * grid.columns / summary.columns : grid?.groundCellMeters
   const groupingScale = groupWidth ? '≈ ' + (groupWidth >= 1000 ? (groupWidth / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' km' : groupWidth < 1 ? (groupWidth * 100).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' cm' : Math.round(groupWidth).toLocaleString() + ' m') + ' across' : undefined
 
   return <section ref={root} className={'map-panel az-map-panel ' + (dark ? 'map-dark' : '')} data-tour="map">
@@ -670,6 +691,7 @@ export function MapPanel() {
       {pickCenter && <div className="map-pick-callout"><Crosshair size={14}/> Select a coordinate on the map</div>}
       {(drawCircle || preview) && <div className="map-pick-callout"><CircleDashed size={14}/> {preview ? <>Radius {drawDistance}{preview.radius > maxRadius && ' · Above limit'}</> : 'Drag to draw a search circle. Esc cancels.'}</div>}
       {mapError && <div className="map-alert" role="alert" {...mapErrorProps}>{mapError}</div>}
+      {fullGrid && summary.error && <div className="map-alert points-alert" role="alert">{summary.error} <button className="text-button" onClick={summary.retry}>Retry map summary</button></div>}
       {pointNotice && <div className="map-alert points-alert" role="alert" {...pointNoticeProps}>{pointNotice} <button className="text-button" onClick={retryPoints}>Retry points</button></div>}
       {notice && <div className="az-map-notice" role="status" {...noticeProps}>{notice}<button type="button" className="text-button" onClick={() => setNotice('')}>Dismiss</button></div>}
       {session && visibleSelection && <PointPopup session={session} selection={visibleSelection}/>}
@@ -681,16 +703,17 @@ export function MapPanel() {
       {session && <MapLegend key={session.id} datasets={matchingDatasets} hidden={hidden} change={changeVisibility}
         palette={displayMode === 'clusters' ? clusterPalette : palette} changePalette={changePalette} colorFor={displayMode === 'clusters' ? clusterColorFor : colorFor}
         displayMode={displayMode} aggregationSize={aggregationSize} changeAggregationSize={changeAggregationSize}
-        renderedGroups={renderedGroups} loadedPoints={loadedPoints} partial={!!points?.truncated} updating={loading && !points}
-        densityBands={densityBands} densityPalette={densityPalette} changeDensityPalette={changeDensityPalette} groupingScale={groupingScale}/>}
+        fullCoverage={fullGrid} renderedGroups={fullGrid ? summary.groups : renderedGroups} loadedPoints={fullGrid ? summary.matched : loadedPoints}
+        partial={!fullGrid && !!points?.truncated} updating={fullGrid ? summary.loading : loading && !points}
+        densityBands={fullGrid ? summary.bands : densityBands} densityPalette={densityPalette} changeDensityPalette={changeDensityPalette} groupingScale={groupingScale}/>}
       {menu && <MapContextMenu position={menu} formatted={formatted} close={closeMenu} setCenter={setCenter}
         searchHere={submitAt} searchDisabled={!canSearchHere} report={setNotice}/>}
     </div>
     <div className="map-status"><span className="az-cursor-readout"><Crosshair size={13}/>{pointer ? 'MGRS ' + mgrs : 'MGRS coordinates'}</span>
       <div className="az-viewport-status">
-        {loading && !searching && <AzimuthLoadingMark/>}
-        {loading ? points ? `${number.format(points.returned)} loaded…` : 'Loading viewport…' : points ? <ViewportCount points={points}/> : visibleIds?.length === 0 ? '0 in view' : 'Web Mercator'}
-        {session && <MapPointBudget state={pointBudget}/>}<span className="zoom-status">Z {zoom.toFixed(1)}</span>
+        {(fullGrid ? summary.loading : loading) && !searching && <AzimuthLoadingMark/>}
+        {fullGrid ? summary.loading ? 'Counting matching points…' : summary.error ? 'Summary unavailable' : `${number.format(summary.matched)} represented in view` : loading ? points ? `${number.format(points.returned)} loaded…` : 'Loading viewport…' : points ? <ViewportCount points={points}/> : visibleIds?.length === 0 ? '0 in view' : 'Web Mercator'}
+        {session && !fullGrid && <MapPointBudget state={pointBudget}/>}<span className="zoom-status">Z {zoom.toFixed(1)}</span>
       </div></div>
   </section>
 }

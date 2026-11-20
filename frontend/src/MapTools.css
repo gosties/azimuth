@@ -23,8 +23,8 @@
   box-shadow: var(--shadow);
   font-size: var(--detail-size);
 }
-.az-map-legend { bottom: 28px; left: 10px; width: 292px; max-width: calc(100% - 20px); max-height: calc(100cqh - 40px); overflow: auto; }
-.az-map-legend summary {
+.az-map-legend { bottom: 28px; left: 10px; width: 380px; max-width: calc(100% - 20px); max-height: calc(100cqh - 40px); overflow: hidden; }
+.az-map-legend summary, .az-legend-window summary {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -39,8 +39,14 @@
 }
 .az-map-legend summary::-webkit-details-marker { display: none; }
 .az-map-legend summary > span { color: var(--muted); }
-.az-map-legend[open] summary { border-bottom: 1px solid var(--line); }
-.az-map-legend[open] .az-legend-summary-title > svg:last-child { transform: rotate(180deg); }
+.az-map-legend details[open] summary, .az-legend-window summary { border-bottom: 1px solid var(--line); }
+.az-map-legend details[open] .az-legend-summary-title > svg:last-child { transform: rotate(180deg); }
+.az-map-legend .az-legend-summary-title { padding-right: 26px; }
+.az-legend-float { position: absolute; z-index: 2; top: 3px; right: 3px; }
+.az-legend-window > details { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
+.az-legend-window > details > summary { cursor: default; }
+.az-legend-window .az-legend-summary-title { display: none; }
+.az-legend-window .az-legend-body { max-height: none; flex: 1; }
 .az-legend-summary-title, .az-legend-summary-key, .az-legend-summary-stats { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 10.5px; }
 .az-legend-summary-title { color: var(--ink); font-size: var(--detail-size); }
 .az-legend-summary-title > svg:last-child { margin-left: auto; }
@@ -58,7 +64,7 @@
   min-height: 0;
   padding: 6px;
 }
-.az-legend-controls { flex: 0 0 auto; }
+.az-legend-controls { flex: 0 1 auto; min-height: 84px; overflow: auto; overscroll-behavior: contain; }
 .az-legend-palette, .az-legend-filters, .az-legend-actions, .az-legend-caption {
   display: flex;
   align-items: center;
@@ -81,7 +87,7 @@
 .az-legend-rows button {
   width: 100%;
   display: grid;
-  grid-template-columns: 12px 9px minmax(0, 1fr) auto;
+  grid-template-columns: var(--legend-columns);
   align-items: center;
   gap: 5px;
   min-height: var(--map-control-height);
@@ -100,6 +106,7 @@
 .az-legend-check { font-weight: 700; }
 .az-legend-swatch { width: 9px; height: 9px; border-radius: 50%; border: 1px solid #2b2926; }
 .az-legend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.az-legend-catalog { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .9em; }
 .az-legend-empty { margin: 5px; color: var(--muted); }
 .az-map-menu { z-index: 4; width: max-content; max-width: calc(100% - 8px); max-height: calc(100% - 8px); overflow: auto; padding: 4px; }
 .az-map-menu p { margin: 0; padding: 6px; color: var(--muted); overflow-wrap: anywhere; }
@@ -116,7 +123,7 @@
   cursor: pointer;
 }
 .az-map-menu button:disabled { color: var(--muted); opacity: .6; cursor: default; }
-.az-map-notice { top: 11px; left: 10px; max-width: calc(100% - 60px); padding: 4px 7px; }
+.az-map-notice { z-index: 5; top: 11px; left: 10px; max-width: calc(100% - 60px); padding: 4px 7px; }
 .az-map-notice button { margin-left: 7px; }
 .az-overlap-cycle { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
 .az-overlap-cycle > span { flex: 1; text-align: center; color: var(--muted); }
@@ -182,3 +189,53 @@
 .az-group-records button { width: 100%; display: flex; justify-content: space-between; gap: 8px; text-align: left; padding: 4px; }
 .az-group-records button:hover { background: var(--subtle); }
 @container (max-width: 480px) { .az-map-display-select { font-size: 11px; gap: 3px; } .az-map-display-select select { width: 82px; } .az-map-display-controls { gap: 4px; } }
+
+.az-map-legend > details { display: flex; flex-direction: column; min-height: 0; max-height: inherit; }
+.az-map-legend.is-sized > details { height: 100%; }
+.az-map-legend.is-sized .az-legend-body { flex: 1; max-height: none; }
+.az-map-legend .az-legend-body { padding-bottom: 20px; overflow: auto; }
+.az-legend-window .az-legend-body { padding-bottom: 20px; overflow: auto; }
+.az-legend-controls { overflow-wrap: anywhere; }
+.az-legend-rows { flex: 1 0 84px; }
+.az-legend-layer-cell { display: flex; align-items: center; min-width: 0; gap: 5px; }
+.az-legend-check, .az-legend-swatch { flex: none; }
+.az-legend-check { width: 12px; }
+.az-legend-matches { text-align: right; font-variant-numeric: tabular-nums; }
+.az-legend-table-head { display: grid; grid-template-columns: var(--legend-columns); align-items: center; gap: 5px; padding: 2px 5px; border-block: 1px solid var(--line); flex: none; }
+.az-legend-table-head button { width: 100%; text-align: left; font-size: inherit; font-weight: 650; padding: 3px 0; border: 0; background: transparent; }
+.az-legend-table-head > span:last-child button { text-align: right; }
+
+
+.az-legend-rows,.az-legend-table-head { scrollbar-gutter: stable; }
+.az-legend-table-head { overflow-y: auto; }
+
+/* Keep rows available while settings scroll independently in every window size. */
+.az-map-legend:has(> details[open]) { height: min(420px, calc(100cqh - 40px)); }
+.az-map-legend > details[open] { height: 100%; }
+/* Modern details wraps its body in a box that must also carry the flex height. */
+@supports selector(details::details-content) {
+  .az-map-legend > details[open]::details-content,
+  .az-legend-window > details[open]::details-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+.az-map-legend summary, .az-legend-window summary { flex: none; gap: 2px; padding-block: 5px; }
+.az-legend-window > details { overflow: hidden; }
+.az-map-legend .az-legend-body, .az-legend-window .az-legend-body { flex: 1; max-height: none; overflow: hidden; }
+.az-legend-toolbar { display: flex; flex: none; align-items: center; gap: 5px; padding-bottom: 4px; }
+.az-legend-toolbar > span { flex: 1; min-width: 0; color: var(--muted); text-align: center; font-size: 10px; }
+.az-legend-toolbar button { display: inline-flex; align-items: center; gap: 4px; min-height: 25px; white-space: nowrap; padding: 2px 4px; font-size: inherit; }
+.az-legend-toolbar button[aria-expanded=true] { color: var(--amber); background: var(--amber-soft); }
+.az-legend-controls { flex: 0 1 auto; min-height: 0; max-height: 55%; overflow: auto; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid var(--line); }
+.az-legend-controls[hidden] { display: none; }
+.az-legend-rows { flex: 1 1 0; min-height: 28px; }
+.az-legend-table-head > span:last-child:not(:first-child) button { text-align: right; }
+.az-legend-table-head > span:first-child button { text-align: left; }
+.az-legend-column-menu { position: fixed; z-index: 10000; width: 168px; max-width: calc(100vw - 8px); max-height: calc(100vh - 8px); overflow: auto; padding: 4px; box-sizing: border-box; border: 1px solid var(--strong-line); border-radius: 5px; color: var(--ink); background: var(--surface); box-shadow: var(--shadow); font-size: var(--detail-size); }
+.az-legend-column-menu button { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 29px; padding: 4px 6px; border: 0; border-radius: 3px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.az-legend-column-menu button > span { width: 12px; flex: none; }
+.az-legend-column-menu button:hover, .az-legend-column-menu button:focus-visible { background: var(--subtle); }

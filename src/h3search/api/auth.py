@@ -29,6 +29,9 @@ class PasswordInput(Input):
 class LoginInput(PasswordInput):
     email: str = Field(min_length=1, max_length=254)
 
+class ChangePasswordInput(PasswordInput):
+    current_password: str = Field(min_length=1, max_length=PASSWORD_MAX)
+
 
 class CreateAccount(LoginInput):
     role: Role
@@ -159,6 +162,17 @@ class AuthAPI:
             response.delete_cookie(COOKIE_NAME, path="/api", httponly=True, samesite="strict",
                                    secure=self.settings.auth_cookie_secure or request.url.scheme == "https")
             return response
+
+        @router.post("/auth/password", status_code=204)
+        async def change_password(request: Request, body: ChangePasswordInput):
+            address = request.client.host if request.client else ""
+            try:
+                await self.password_work(accounts.change_password, request.state.auth_token,
+                                         body.current_password, body.password, address)
+            except LoginThrottled as error:
+                raise HTTPException(429, "Too many password change attempts. Try again later.",
+                                    headers={"Retry-After": str(error.args[0])}) from None
+            return Response(status_code=204)
 
         @router.get("/admin/users")
         async def list_accounts(request: Request):
