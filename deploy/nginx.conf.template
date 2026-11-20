@@ -20,6 +20,10 @@ map $uri $azimuth_frame_options {
     default DENY;
     ~^/api/admin/infrastructure/document$ SAMEORIGIN;
 }
+map $uri $azimuth_document_cache {
+    default "public, no-cache, no-transform";
+    ~^/(api|assets|licenses)/ "";
+}
 server {
     listen 80;
     server_name _;
@@ -39,8 +43,12 @@ server {
     add_header Strict-Transport-Security $azimuth_hsts always;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Cache-Control $azimuth_document_cache always;
     location /api/ {
-        proxy_pass http://api:8000;
+        # Resolve the Compose service again when the API container is replaced.
+        resolver 127.0.0.11 valid=5s ipv6=off;
+        set $azimuth_api http://api:8000;
+        proxy_pass $azimuth_api;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;

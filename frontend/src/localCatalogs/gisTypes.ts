@@ -1,8 +1,17 @@
 export const GIS_LIMITS = Object.freeze({ inputBytes: 128 * 1024 * 1024, outputBytes: 128 * 1024 * 1024, rows: 500000, files: 512, layers: 32, timeoutMs: 120000 })
-export type GisField = { name: string; type: string; subtype?: string }
-export type GisLayer = { id: string; name: string; geometryType: string; featureCount: number; crs: string | null; importable: boolean; reason?: string; fields: GisField[] }
+export type GisField = { name: string; type: string; subtype?: string; importable?: boolean; reason?: string }
+export type GisLayer = { id: string; name: string; geometryType: string; featureCount: number; featureCountKnown?: boolean; crs: string | null; importable: boolean; reason?: string; fields: GisField[]; datetime_columns?: string[] }
 export type GisScan = { layers: GisLayer[]; warnings: string[] }
-export type GisImportOptions = { name: string; layerId: string; catalogId?: string; datetime_column?: string }
+export type GisImportOptions = { name: string; layerId: string; catalogId?: string; catalogName?: string; datetime_column?: string; attribute_columns?: string[] }
+export function gisFieldSupported(field: GisField): boolean {
+  return field.importable !== false && ['String', 'Integer', 'Integer64', 'Real', 'Date', 'DateTime'].includes(field.type)
+    && field.subtype !== 'JSON' && !/^_+azimuth_/i.test(field.name)
+}
+export function suggestGisMapping(layer: GisLayer) {
+  const fields = layer.fields.filter(gisFieldSupported)
+  return { attribute_columns: fields.map(field => field.name),
+    datetime_column: layer.datetime_columns?.[0] ?? '' }
+}
 export type GisWorkerResult = GisScan & { outputs: { layerId: string; file: Blob }[] }
 export type GisSource = { names: string[]; primary: string; format: 'GeoJSON' | 'KML' | 'Shapefile' | 'GPKG' | 'GDB' }
 export const GIS_BATCH_LIMITS = Object.freeze({ sources: 64, files: 4096 })

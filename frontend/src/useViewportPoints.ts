@@ -3,11 +3,13 @@ import Feature from 'ol/Feature'
 import type Map from 'ol/Map'
 import Point from 'ol/geom/Point'
 import type VectorSource from 'ol/source/Vector'
+import { containsExtent, type Extent } from 'ol/extent'
 import { api, errorText, type PointProgress, type ThinRow, type Viewport } from './api'
 import { geographicViewport, project } from './geometry'
 
 type PointSummary = Pick<PointProgress, 'matched_total' | 'returned'> & { truncated: boolean }
 type ViewportLoad = {
+  preview?: boolean
   scope: string
   viewport: Viewport
   features: Feature[]
@@ -39,10 +41,12 @@ function afterMapFrame() {
 }
 
 export function useViewportPoints(mapRef: RefObject<Map | null>, source: VectorSource | null, mapVersion: number,
-  sessionId: string | undefined, datasetIds: string[] | undefined, budget: number) {
+  sessionId: string | undefined, datasetIds: string[] | undefined, budget: number,
+  preview?: { rows: ThinRow[]; total: number; datasetIds: string[]; extent?: Extent }) {
   const [status, setStatus] = useState(idle)
   const desiredBudget = useRef(budget)
   const controls = useRef<{ setBudget: (next: number) => void; retry: () => void } | null>(null)
+  const previewSession = useRef<string | undefined>(undefined)
 
   useLayoutEffect(() => {
     desiredBudget.current = budget
@@ -64,8 +68,23 @@ export function useViewportPoints(mapRef: RefObject<Map | null>, source: VectorS
     let active: { controller: AbortController; target: number } | undefined
     let timer: number | undefined
     let paused = true
+    const allDatasets = !datasetIds || !!preview && datasetIds.length === preview.datasetIds.length && preview.datasetIds.every(id => datasetIds.includes(id))
+    const startSize = map.getSize()
+    const previewInView = !!preview?.extent && !!startSize && containsExtent(map.getView().calculateExtent(startSize), preview.extent)
+    let canPreview = !!preview?.rows.length && allDatasets && (previewSession.current !== session || previewInView)
+    if (canPreview) {
+      previewSession.current = session
+      mapSource.addFeatures(preview!.rows.slice(0, Math.min(limit, 3000)).map(pointFeature))
+      setStatus({ points: { returned: mapSource.getFeatures().length, matched_total: preview!.total,
+        truncated: mapSource.getFeatures().length < preview!.total }, loading: false, error: '' })
+    }
 
     function publish() {
+      if (canPreview && preview && !state) {
+        const returned = mapSource.getFeatures().length
+        setStatus({ points: { returned, matched_total: preview.total, truncated: returned < preview.total }, loading: false, error: '' })
+        return
+      }
       const returned = state?.features.length ?? 0
       const matched = state?.matched
       setStatus({
@@ -94,6 +113,13 @@ export function useViewportPoints(mapRef: RefObject<Map | null>, source: VectorS
     function load() {
       const current = state
       if (paused || active || !current || current.error) return
+      if (current.preview) {
+        if (current.features.length >= Math.min(limit, current.matched!)) { publish(); return }
+        // Preview rows have no canonical viewport cursor. Replace them from page one.
+        state = { ...current, preview: false, features: [], checkpoints: [], matched: null, shown: false, confirmed: null }
+        load()
+        return
+      }
       const through = target(current)
       const returned = current.features.length
       if (returned >= through && current.confirmed === returned) {
@@ -141,6 +167,10 @@ export function useViewportPoints(mapRef: RefObject<Map | null>, source: VectorS
     function invalidate() {
       window.clearTimeout(timer)
       abort()
+      if (state?.preview) {
+        mapSource.clear(true)
+        state = undefined
+      }
       paused = true
       publish()
     }
@@ -155,7 +185,15 @@ export function useViewportPoints(mapRef: RefObject<Map | null>, source: VectorS
         const scope = JSON.stringify({ ...viewport, zoom: Math.floor(viewport.zoom) })
         if (state?.scope !== scope) {
           state = { scope, viewport, features: [], checkpoints: [], matched: null, shown: false, confirmed: null, error: '' }
+          if (allDatasets && preview?.rows.length && preview.extent && containsExtent(view.calculateExtent(size), preview.extent)
+            && preview.rows.length >= Math.min(limit, preview.total)) {
+            const features = preview.rows.slice(0, Math.min(limit, 3000)).map(pointFeature)
+            mapSource.clear(true)
+            mapSource.addFeatures(features)
+            state = { ...state, preview: true, features, matched: preview.total, shown: true, confirmed: features.length }
+          }
         }
+        canPreview = false
         paused = false
         if (state.error) publish()
         else load()
@@ -164,6 +202,16 @@ export function useViewportPoints(mapRef: RefObject<Map | null>, source: VectorS
 
     controls.current = {
       setBudget(next) {
+        if (canPreview && !state && next < limit) {
+          mapSource.removeFeatures(mapSource.getFeatures().slice(next))
+        }
+        if (state?.preview && next < limit) {
+          mapSource.removeFeatures(state.features.splice(next))
+          state.confirmed = state.features.length
+          limit = next
+          publish()
+          return
+        }
         if (state && next < limit) {
           if (active && active.target > next) abort()
           while ((state.checkpoints.at(-1)?.returned ?? 0) > next) state.checkpoints.pop()
@@ -196,7 +244,7 @@ export function useViewportPoints(mapRef: RefObject<Map | null>, source: VectorS
       map.un('moveend', queue)
       map.un('change:size', queue)
     }
-  }, [mapRef, source, mapVersion, sessionId, datasetIds])
+  }, [mapRef, source, mapVersion, sessionId, datasetIds, preview])
 
   return { ...status, retry: () => controls.current?.retry() }
 }

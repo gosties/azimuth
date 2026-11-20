@@ -1,0 +1,12 @@
+.column-choice-picker{display:grid;gap:8px;min-width:0}
+.column-choice-toolbar{display:flex;align-items:end;gap:10px;flex-wrap:wrap;min-width:0}
+.column-choice-filter{flex:1;min-width:min(160px,100%);font-size:11px}
+.column-choice-filter input{min-width:0;width:100%}
+.column-choice-toolbar .choice-actions{display:flex;gap:10px;flex-wrap:wrap;align-self:center}
+.column-choice-summary{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;font-size:10px;color:var(--muted)}
+.column-choice-picker .column-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr));gap:2px;max-height:min(260px,40dvh);overflow:auto;min-width:0;border:1px solid var(--line);border-radius:4px;padding:4px;scrollbar-gutter:stable}
+.column-choice-picker .column-options label{display:flex;flex-direction:row;align-items:center;gap:8px;min-height:32px;min-width:0;padding:5px 6px;border-radius:3px;font-size:12px;cursor:pointer}
+.column-choice-picker .column-options label:hover,.column-choice-picker .column-options label:focus-within{background:var(--subtle)}
+.column-choice-picker .column-options input[type=checkbox]{flex:0 0 auto;width:16px;height:16px;min-width:16px;margin:0;accent-color:var(--amber)}
+.column-choice-picker .column-options span{min-width:0;overflow-wrap:anywhere}
+@media(pointer:coarse){.column-choice-picker .column-options label{min-height:42px}}

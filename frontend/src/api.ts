@@ -1,3 +1,4 @@
+import type { GridRequest, GridSummary } from './mapGrid'
 import { createCatalogSearch } from './catalogSearch'
 import { localCatalogs } from './localCatalogs'
 import { createPrivateCatalogApi } from './privateCatalogApi'
@@ -68,7 +69,7 @@ export type Column = { name: string; type: string }
 export type RecordField = Column & { value: unknown } & ({ truncated?: false } | ({ truncated: true } & FieldExtent))
 export type RecordDetail = Identity & { snapshot_id: string | number; fields: RecordField[] }
 export type DatasetResult = { id: string; name: string; count: number; catalog_id?: string; catalog_name?: string; catalog_kind?: 'shared' | 'local' }
-export type Session = { id: string; total: number; expires_at: string; publication_id: string; datasets: DatasetResult[]; rows: ThinRow[]; next_cursor: string | null; lookup_mode?: LookupMode; time_filter?: TimeFilter | null; parent_session_id?: string | null; temporal_dataset_ids?: string[] }
+export type Session = { id: string; total: number; expires_at: string; publication_id: string; datasets: DatasetResult[]; rows: ThinRow[]; map_preview?: ThinRow[]; next_cursor: string | null; lookup_mode?: LookupMode; time_filter?: TimeFilter | null; parent_session_id?: string | null; temporal_dataset_ids?: string[] }
 export type Page = { items: ThinRow[]; next_cursor: string | null }
 export type WidePage = { items: WideRow[]; columns: Column[]; next_cursor: string | null; total: number; hidden_columns?: string[] }
 export type Points = { items: ThinRow[]; matched_total: number; returned: number; truncated: boolean }
@@ -199,6 +200,8 @@ export const remoteApi = {
   me: (signal?: AbortSignal) => request<AuthState>('/auth/me', { signal }),
   login: (email: string, password: string) => request<AuthSession>('/auth/login', payload('POST', { email, password })),
   logout: () => request<void>('/auth/logout', payload('POST', {})),
+  changePassword: (current_password: string, password: string) =>
+    request<void>('/auth/password', payload('POST', { current_password, password })),
   accounts: (signal?: AbortSignal) => request<{items: Account[]}>('/admin/users', { signal }),
   createAccount: (email: string, password: string, role: Role) => request<Account>('/admin/users', payload('POST', { email, password, role })),
   updateAccount: (id: string, value: Partial<Pick<Account, 'role' | 'active'>>) => request<Account>('/admin/users/' + encode(id), payload('PATCH', value)),
@@ -251,6 +254,10 @@ export const remoteApi = {
   points: (session: string, viewport: Viewport, limit: number, signal: AbortSignal, datasetIds?: string[]) =>
     request<Points>(searchPath(session) + '/points', {
       ...payload('POST', { ...viewport, limit, ...(datasetIds ? { dataset_ids: datasetIds } : {}) }), signal,
+    }),
+  aggregates: (session: string, grid: GridRequest, signal: AbortSignal, datasetIds?: string[]) =>
+    request<GridSummary>(searchPath(session) + '/map/aggregates', {
+      ...payload('POST', { ...grid, ...(datasetIds ? { dataset_ids: datasetIds } : {}) }), signal,
     }),
   streamPoints,
   tablePreferences: (id: string, signal: AbortSignal) =>

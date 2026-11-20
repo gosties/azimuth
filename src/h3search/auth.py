@@ -156,6 +156,29 @@ class Accounts:
             user = {key: current[key] for key in ("id", "email", "role")}
             return token, {"user": user, "csrf_token": csrf, "expires_at": expires}
 
+    def change_password(self, token, current_password, new_password, address):
+        token_hash = _token_hash(token)
+        with self._write() as conn:
+            session = self._session(conn, token_hash)
+            if session is None:
+                raise PermissionDenied()
+            account_id = session["id"]
+            self._consume_attempt(conn, "password:" + account_id, "password:" + address)
+            stored = conn.execute("SELECT password_hash FROM accounts WHERE id=?", (account_id,)).fetchone()["password_hash"]
+        if not _password_matches(current_password, stored):
+            raise AccountError("Current password is incorrect.")
+        new_hash = _password_hash(new_password)
+        with self._write() as conn:
+            if self._session(conn, token_hash) is None:
+                raise PermissionDenied()
+            changed = conn.execute(
+                "UPDATE accounts SET password_hash=? WHERE id=? AND password_hash=?",
+                (new_hash, account_id, stored),
+            )
+            if changed.rowcount != 1:
+                raise ConflictError("Password changed elsewhere. Try again using your current password.")
+            conn.execute("DELETE FROM login_sessions WHERE account_id=? AND token_hash<>?", (account_id, token_hash))
+
     def logout(self, token):
         token_hash = _token_hash(token)
         if token_hash is not None:

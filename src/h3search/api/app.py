@@ -31,7 +31,7 @@ from .execution import Unavailable, Workers
 from .exports import Exports, register_exports
 from .models import (
     CORE_COLUMN_KEYS, PUBLIC_DATASET_FIELDS, ColumnPreferences, DatasetInput, DatasetMetadataInput, Input, PointsInput, PointsStreamInput, SearchInput,
-    CSVInput, CSVLocationsInput, TimeFilterInput, CategoryInput, MapsInput, ExportSettingsInput,
+    CSVInput, CSVLocationsInput, TimeFilterInput, CategoryInput, MapsInput, ExportSettingsInput, AggregatesInput,
     object_key, validate_search_limits,
 )
 from .maps import configured_maps, public_maps
@@ -159,7 +159,7 @@ def _new_session(job, registry, search, settings, body, user_id):
 
 
 def _save_search(job, registry, search, settings, session):
-    counts, page = search.initial(job, session, 100)
+    counts, page = search.initial(job, session, 100, map_preview=True)
     now = datetime.now(timezone.utc)
     session["created_at"] = now.isoformat()
     session["expires_at"] = (now + timedelta(seconds=settings.session_ttl_sec)).isoformat()
@@ -172,6 +172,7 @@ def _save_search(job, registry, search, settings, session):
         job.check()
     return {
         "id": session["id"], "total": session["total"], "expires_at": session["expires_at"],
+        "map_preview": page.get("map_preview", []),
         "publication_id": session["publication"]["id"], "rows": page["items"], "next_cursor": page["next_cursor"],
         "lookup_mode": session["query"].get("lookup_mode", "partitioned"),
         "datasets": [{"id": table, "name": session["query"]["dataset_names"][table], "count": counts.get(table, 0)}
@@ -706,6 +707,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def points_query(request: Request, session_id: UUID, body: PointsInput):
         """Query viewport points without encoding the dataset selection in the URL."""
         return await viewport_points(request, session_id, **body.model_dump())
+
+    @router.post("/searches/{session_id}/map/aggregates")
+    async def map_aggregates(request: Request, session_id: UUID, body: AggregatesInput):
+        """Return full-result cell counts for the visible frozen selection."""
+        if body.south > body.north:
+            raise HTTPException(422, "South must be at or below north")
+        search = request.app.state.search
+        selected = None if body.dataset_ids is None else list(dict.fromkeys(map(str, body.dataset_ids)))
+        return await read_session(request, session_id, lambda job, session: search.aggregates(
+            job, session, (body.west, body.south, body.east, body.north), body.mode, body.columns, selected))
 
     async def stream_session(request, session_id, produce, *, first_chunk=None, tolerate_interruption=False, **response_options):
         loop = asyncio.get_running_loop()

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "h3search"
-version = "0.8.3"
+version = "0.11.5"
 description = "Spatial search and bounded table ingestion"
 requires-python = ">=3.12,<3.13"
 dynamic = ["dependencies"]
@@ -27,7 +27,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "h3search" = ["data/*.json"]
-"h3search.api" = ["documents/*.html"]
+"h3search.api" = ["documents/*.html", "*.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

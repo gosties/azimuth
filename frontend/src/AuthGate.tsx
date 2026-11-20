@@ -55,11 +55,16 @@ export function AuthGate() {
     setBusy('logout')
     setSession(null)
     setError('')
-    try { await api.logout() }
+    try {
+      // Start with the current CSRF token, then release account resources immediately.
+      const request = api.logout()
+      install(null)
+      await request
+    }
     catch (failure) {
       if (!(failure instanceof ApiError && failure.status === 401)) {
         setError('Azimuth could not confirm sign-out. You can retry.')
-        setSession(session)
+        install(session)
       }
       else install(null)
       return

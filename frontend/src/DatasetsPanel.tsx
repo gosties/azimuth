@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Database, FilePlus2, Pencil, RefreshCw, X } from 'lucide-react'
+import { Database, FilePlus2, Pencil, RefreshCw, SlidersHorizontal, X } from 'lucide-react'
 import { api, errorText, type Category, type Dataset, type DatasetColumns, type Registration } from './api'
 import { canManageDatasets, filterDatasets, number, useWorkspace } from './workspace'
 import { DescriptionPreview } from './DescriptionPreview'
 import { CatalogSelection } from './CatalogSelection'
-import { LocalCatalogManager } from './LocalCatalogManager'
+import { LocalCatalogManager, openLocalCatalog } from './LocalCatalogManager'
+import './DatasetCatalog.css'
 
 const statusText: Record<Dataset['status'], string> = { registered: 'Registered', loading: 'Loading', ready: 'Published', error: 'Load error', removing: 'Removing' }
 
@@ -97,6 +98,8 @@ export function DatasetsPanel({ manage = false, categories: suppliedCategories }
   const catalogDatasets = canEdit ? datasets.filter(dataset => dataset.catalog_kind !== 'local') : datasets
   const searchableTotal = catalogDatasets.reduce((total, dataset) => total + dataset.searchable_count, 0)
   const visible = filterDatasets(catalogDatasets, filter, status || undefined, true).filter(dataset => !category || (category === '__uncategorized' ? !dataset.category_ids?.length : dataset.category_ids?.includes(category)))
+  const statusFilter = <label>Status<select aria-label="Status" value={status} onChange={event => setStatus(event.target.value as typeof status)}><option value="">All statuses</option>{(Object.keys(statusText) as Dataset['status'][]).map(value => <option key={value} value={value}>{statusText[value]}</option>)}</select></label>
+  const categoryFilter = categories.length > 0 && <label>Category<select aria-label="Catalog category" value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option><option value="__uncategorized">Uncategorized</option>{categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
   return <section className={'panel-pad catalog-panel' + (canEdit ? ' catalog-admin' : ' catalog-browse')} data-tour={manage ? undefined : 'catalog'}>
     <div className="section-heading">
       <div><h2>{canEdit ? 'Manage catalog' : 'Dataset catalog'}</h2>
@@ -109,14 +112,11 @@ export function DatasetsPanel({ manage = false, categories: suppliedCategories }
     {catalogError && <p className="inline-error" role="alert">{catalogError}</p>}
     {!manage && localCatalogError && <p className="inline-error" role="alert">Local catalogs unavailable. {localCatalogError}</p>}
     {canEdit && editor === 'new' ? <RegistrationEditor close={() => setEditor(null)}/> : <>
-      <div className="catalog-filters">
+      <div className={'catalog-filters' + (canEdit ? '' : ' catalog-compact-filters')}>
         <input type="search" aria-label="Search catalog" placeholder="Name or description" value={filter} onChange={event => setFilter(event.target.value)}/>
-        <select aria-label="Status" value={status} onChange={event => setStatus(event.target.value as typeof status)}>
-          <option value="">All statuses</option>{(Object.keys(statusText) as Dataset['status'][]).map(value => <option key={value} value={value}>{statusText[value]}</option>)}
-        </select>
-        {categories.length > 0 && <select className="catalog-category-filter" aria-label="Catalog category" value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option><option value="__uncategorized">Uncategorized</option>{categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
+        {canEdit ? <>{statusFilter}{categoryFilter}</> : <details className="catalog-filter-options"><summary><SlidersHorizontal size={13}/>Filters{(status || category) && <span className="catalog-filter-count">{Number(!!status) + Number(!!category)}</span>}</summary><div className="catalog-filter-popover">{statusFilter}{categoryFilter}<button type="button" className="text-button" onClick={() => { setStatus(''); setCategory('') }}>Clear filters</button></div></details>}
       </div>
-      {canEdit && visible.length ? <div className="admin-table-scroll" tabIndex={0} aria-label="Catalog table"><table className="admin-table"><thead><tr><th>Dataset</th><th>Description</th><th>Date/time</th><th>Categories</th><th>Status / records</th><th>Actions</th></tr></thead><tbody>{visible.map(dataset => <FragmentRow key={dataset.id} dataset={dataset} categories={categories} editing={typeof editor === 'object' && editor?.id === dataset.id} edit={() => setEditor(dataset)} close={() => setEditor(null)}/>)}</tbody></table></div> : !canEdit ? <CatalogSelection rows={visible} categories={categories} browse/> : <div className="catalog-empty"><Database size={20}/><span>{catalogLoading ? 'Loading datasets…' : catalogDatasets.length ? 'No datasets match these filters.' : 'No datasets registered'}</span></div>}
+      {canEdit && visible.length ? <div className="admin-table-scroll" tabIndex={0} aria-label="Catalog table"><table className="admin-table"><thead><tr><th>Dataset</th><th>Description</th><th>Date/time</th><th>Categories</th><th>Status / records</th><th>Actions</th></tr></thead><tbody>{visible.map(dataset => <FragmentRow key={dataset.id} dataset={dataset} categories={categories} editing={typeof editor === 'object' && editor?.id === dataset.id} edit={() => setEditor(dataset)} close={() => setEditor(null)}/>)}</tbody></table></div> : !canEdit ? <CatalogSelection rows={visible} categories={categories} browse openLocal={openLocalCatalog}/> : <div className="catalog-empty"><Database size={20}/><span>{catalogLoading ? 'Loading datasets…' : catalogDatasets.length ? 'No datasets match these filters.' : 'No datasets registered'}</span></div>}
     </>}
   </section>
 }

@@ -305,7 +305,7 @@ class Search:
                                   matching.args, len(session["query"]["dataset_ids"]))
         return {table: count for table, count in rows}
 
-    def initial(self, job, session, limit):
+    def initial(self, job, session, limit, *, map_preview=False):
         """Count all matches and fetch the first page in one bounded scan."""
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("Initial page size must be an integer from 1 to 100")
@@ -316,7 +316,16 @@ class Search:
         per_dataset = limit + 1
         if len(datasets) * per_dataset > INITIAL_CANDIDATE_BUDGET:
             counts = self.counts(job, session)
-            return counts, self.page(job, session, limit) if counts else empty_page
+            page = self.page(job, session, limit) if counts else empty_page
+            if map_preview:
+                preview = []
+                if counts:
+                    matching = self._matching(job, session)
+                    rows = self.storage.query(job, "search_initial_preview", matching.sql +
+                                              f" SELECT {THIN} FROM matches LIMIT 3000", matching.args, 3000)
+                    preview = [thin_row(row) for row in rows]
+                page = {**page, "map_preview": preview}
+            return counts, page
 
         matching = self._matching(job, session)
         sql = (
@@ -324,7 +333,36 @@ class Search:
             f"min_by(ROW(object_id, h3_r15, lat, lon, distance_m), object_id, {per_dataset}) "
             "FROM matches GROUP BY table_id ORDER BY table_id"
         )
-        rows = self.storage.query(job, "search_initial", sql, matching.args, len(datasets))
+        proportional_preview = map_preview and len(datasets) <= 32
+        if map_preview:
+            # Compute a mixed sample alongside the page and counts in one snapshot scan.
+            priority = "hash(object_id, table_id)" if self.storage.local else "xxhash64(to_big_endian_64(object_id))"
+            point = "ROW(object_id, h3_r15, lat, lon, distance_m)"
+            mixed_point = "ROW(table_id, object_id, h3_r15, lat, lon, distance_m)"
+            if proportional_preview:
+                # Avoid doubling every matching row. At most 32 bounded sampling
+                # heaps remain active, and the wire carries at most 3,031 candidates.
+                slice_function = "list_slice" if self.storage.local else "slice"
+                sql = (matching.sql + ", preview_groups AS (SELECT table_id, count(*) AS cnt, "
+                       f"min_by({point}, object_id, {per_dataset}) AS page, "
+                       f"min_by({mixed_point}, {priority}, 3000) AS sample FROM matches GROUP BY table_id) "
+                       f"SELECT table_id, cnt, page, {slice_function}(sample, 1, "
+                       "CAST(ceil(3000e0 * cnt / sum(cnt) OVER ()) AS BIGINT)) FROM preview_groups")
+            else:
+                sql = (matching.sql + " SELECT CASE WHEN preview THEN NULL ELSE table_id END AS dataset, count(*), "
+                       f"min_by({point}, object_id, {per_dataset}) FILTER (WHERE NOT preview), "
+                       f"min_by({mixed_point}, {priority}, 3000) FILTER (WHERE preview) "
+                       "FROM matches CROSS JOIN (VALUES (FALSE), (TRUE)) AS flags(preview) GROUP BY 1")
+        rows = self.storage.query(job, "search_initial", sql, matching.args, len(datasets) + int(map_preview))
+        preview = []
+        samples = {}
+        if map_preview:
+            if proportional_preview:
+                samples = {table: sample for table, _, _, sample in rows}
+                rows = [(table, count, points) for table, count, points, _ in rows]
+            else:
+                preview = [thin_row(point) for table, _, _, sample in rows if table is None for point in sample]
+                rows = [(table, count, points) for table, count, points, _ in rows if table is not None]
         selected = set(datasets)
         counts = {}
         candidates = []
@@ -347,10 +385,26 @@ class Search:
                 object_ids.add(point[0])
                 candidates.append((table, *point))
 
+        if proportional_preview and counts:
+            total = sum(counts.values())
+            target = min(3000, total)
+            allocations = {table: target * count // total for table, count in counts.items()}
+            remaining = target - sum(allocations.values())
+            # Largest remainders preserve dataset proportions without favoring
+            # whichever dataset happened to arrive first from the query engine.
+            priority = sorted(counts, key=lambda table: (-(target * counts[table] % total), table))
+            for table in priority[:remaining]:
+                allocations[table] += 1
+            for table in sorted(counts):
+                if len(samples[table]) < allocations[table]:
+                    raise RuntimeError("Storage returned an incomplete initial map preview")
+                preview.extend(thin_row(point) for point in samples[table][:allocations[table]])
+
         # A global prefix of N rows can contain at most N rows from each dataset.
         candidates.sort(key=lambda row: row[:2])
         next_cursor = encode_cursor(session, ["rows"], candidates[limit - 1][:2]) if len(candidates) > limit else None
-        return counts, {"items": [thin_row(row) for row in candidates[:limit]], "next_cursor": next_cursor}
+        return counts, {"items": [thin_row(row) for row in candidates[:limit]], "next_cursor": next_cursor,
+                        **({"map_preview": preview} if map_preview else {})}
 
     def page(self, job, session, limit, cursor=None, table_id=None, overlap=None, projection=None):
         """Retrieve a stable, bounded page and a scope-bound continuation token."""
@@ -495,6 +549,30 @@ class Search:
         total = rows[0][-1] if rows else 0
         return {"items": [thin_row(row[:-1]) for row in rows], "matched_total": total,
                 "returned": len(rows), "truncated": len(rows) < total}
+
+    def aggregates(self, job, session, viewport, mode, columns, dataset_ids=None):
+        """Count every frozen match into bounded occupied cells without point transfer."""
+        from .map_aggregates import MAX_CELLS, MAX_GROUPS, aggregate_relation, bounded_columns
+
+        selected = sorted(set(session["query"]["dataset_ids"] if dataset_ids is None else dataset_ids))
+        for table_id in selected:
+            self.check_table(session, table_id)
+        columns = bounded_columns(columns, viewport, len(selected), mode)
+        matching = self._matching(job, session, viewport=viewport, dataset_ids=selected)
+        while True:
+            relation = aggregate_relation(matching, mode, columns)
+            rows = self.storage.query(job, "map_aggregates", relation.sql, relation.args, MAX_GROUPS + 1)
+            if not rows or len(rows) <= MAX_GROUPS and rows[0][-2] <= MAX_CELLS:
+                break
+            if columns == 1:
+                raise HTTPException(422, "Aggregate selection exceeds the bounded response size")
+            columns = max(1, columns // 2)
+            job.check()
+        return {"mode": mode, "columns": columns,
+                "items": [{"q": row[0], "r": row[1], "table_id": row[2], "count": row[3],
+                           "sum_x": row[4], "sum_y": row[5], "bounds": list(row[6:10])} for row in rows],
+                "matched_total": rows[0][-1] if rows else 0,
+                "cell_count": rows[0][-2] if rows else 0}
 
     def stream_points(self, job, session, viewport, zoom, limit, dataset_ids, token, emit):
         """Emit bounded batches from one cursor and return the verified final position."""

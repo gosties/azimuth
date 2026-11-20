@@ -1,0 +1,25 @@
+.widget-overlay{display:block;padding:0}.widget-overlay.is-floating{background:transparent;pointer-events:none}.widget-overlay.is-popped-out{background:var(--surface)}
+.widget-window.local-catalog-dialog{position:absolute;max-width:100%;max-height:100%;width:unset;height:unset;min-width:0;pointer-events:auto;border-radius:6px}
+.widget-window.is-maximized{inset:0;width:100%;height:100%;border-radius:0}
+.widget-window-heading{cursor:grab;touch-action:none;gap:10px;padding:9px 12px;border-bottom:1px solid var(--strong-line);background:var(--floating-header-background);color:var(--header-text);box-shadow:inset 3px 0 var(--amber)}
+.widget-window-heading :is(.icon-button,.button.subtle){color:var(--header-text)}
+.widget-window-heading :is(.icon-button,.button.subtle):hover:not(:disabled){background:var(--header-border);color:var(--header-text)}
+.widget-window-heading button:focus-visible{outline-color:var(--header-text)}
+.widget-window-heading h2{min-width:0;font-size:15px}.widget-window-heading>.local-catalog-actions{justify-content:flex-end;align-items:center}.widget-window-heading .dock-actions{display:flex;gap:2px}.is-popped-out .widget-window-heading{cursor:default}
+.widget-window-error{margin:0;padding:7px 14px;color:var(--muted);font-size:12px}
+.widget-resize{position:absolute;z-index:5;touch-action:none}.widget-resize-n,.widget-resize-s{left:7px;right:7px;height:7px;cursor:ns-resize}.widget-resize-n{top:0}.widget-resize-s{bottom:0}.widget-resize-e,.widget-resize-w{top:7px;bottom:7px;width:7px;cursor:ew-resize}.widget-resize-e{right:0}.widget-resize-w{left:0}.widget-resize-ne,.widget-resize-se,.widget-resize-sw,.widget-resize-nw{width:12px;height:12px}.widget-resize-ne{top:0;right:0;cursor:nesw-resize}.widget-resize-se{bottom:0;right:0;cursor:nwse-resize}.widget-resize-sw{bottom:0;left:0;cursor:nesw-resize}.widget-resize-nw{top:0;left:0;cursor:nwse-resize}
+.widget-resize-keyboard{position:absolute;right:0;bottom:0;width:20px;height:20px;min-width:20px;min-height:20px;border:0;border-radius:0 0 5px 0;background:transparent;color:var(--muted);padding:0;margin:0;font-size:15px;line-height:1;display:grid;place-items:end;z-index:6;cursor:nwse-resize;touch-action:none;user-select:none}
+.widget-resize-keyboard:hover,.widget-resize-keyboard:focus-visible{color:var(--amber);background:var(--accent-soft);outline-offset:-2px}
+.local-remove-overlay{position:fixed;inset:0;z-index:1200;background:#0008;display:grid;place-items:center;padding:16px}
+.local-remove-dialog{display:grid;gap:15px;width:min(420px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;background:var(--surface);color:var(--ink);border:1px solid var(--strong-line);border-radius:8px;box-shadow:var(--shadow)}
+.local-remove-dialog h2{font-size:17px;margin:0}.local-remove-dialog p{margin:0;font-size:var(--body-size);line-height:1.5;overflow-wrap:anywhere}.local-remove-dialog .local-catalog-actions{justify-content:flex-end}.local-remove-working{display:flex;align-items:center;gap:8px}
+.local-operation-card{display:flex;align-items:center;gap:12px;flex:0 0 auto;align-self:center;width:calc(100% - 24px);max-width:720px;max-height:min(150px,32dvh);overflow:auto;box-sizing:border-box;margin:10px 12px 0;padding:12px 14px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:7px;box-shadow:var(--shadow);color:var(--ink)}
+.local-operation-card>strong{flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px;line-height:1.5}.local-operation-card>.azimuth-loading-mark{flex:none}.local-operation-card>.button{flex:0 0 auto;white-space:nowrap}
+@media(max-width:480px){.local-operation-card{gap:9px;padding:9px 10px;flex-wrap:wrap;margin-top:7px}.local-operation-card>strong{flex-basis:calc(100% - 45px)}.local-operation-card>.button{margin-left:41px;min-height:30px}}
+@media(max-height:500px){.local-operation-card{margin-top:6px;padding:7px 10px;gap:9px}.local-operation-card>.azimuth-loading-mark{width:26px;height:26px}}
+@media(prefers-reduced-motion:reduce){.local-operation-card .azimuth-loading-wedge{animation:none}}
+.widget-window .local-catalog-manager>[hidden]{display:none}.widget-window .local-catalog-manager>.repository-builder-mount:not([hidden]){display:flex;flex:1;min-height:0}.repository-builder-mount>.repository-builder{display:flex;flex-direction:column;gap:12px;min-height:0;flex:1;min-width:0}
+@media(max-width:850px){.widget-window-heading{flex-wrap:wrap;gap:5px}.widget-window-heading>.local-catalog-actions{margin-left:auto}.repository-builder-mount>.repository-builder{flex:none;min-height:auto}}
+
+.widget-window-heading:active{cursor:grabbing}
+.widget-window-heading h2::before{content:"⠿";margin-right:8px;color:var(--header-text)}

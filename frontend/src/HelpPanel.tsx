@@ -9,7 +9,7 @@ export const tourSteps = [
   { target: 'scope', panel: 'search', title: 'Choose the datasets', body: 'Search and Dataset catalog share one selection across shared and local catalogs. Expand a catalog to see its datasets, select its checkbox to include the group, or Shift-click to select a visible range.' },
   { target: 'map', panel: 'map', title: 'Explore matches on the map', body: 'Pan and zoom to load points in view. Select a point to see its record, or right-click the map for coordinate and search actions.' },
   { target: 'results', panel: 'results', title: 'Open matching records', body: 'Expand a dataset to load up to 100 records. Use Columns to choose fields. Advanced search can apply a UTC time range before results load. Date filter can refine an existing search. Export shared records in the offered formats; results containing local data download as JSON.' },
-  { target: 'catalog', panel: 'datasets', title: 'Browse or add local data', body: 'Expand compact catalog groups to browse datasets. Add local data stays in the toolbar above the list and opens Add data, Manage local, and Format help. Import point Parquet or an eligible GIS layer, and export prepared catalogs to keep a backup.' },
+  { target: 'catalog', panel: 'datasets', title: 'Browse or add local data', body: 'Choose Add local data to build a point repository. Open a folder, select a source, and use Inspect selected to choose its fields. Stage the layers you want, build the catalog, and save a bundle to keep a backup.' },
   { target: 'layout', panel: null, title: 'Arrange your workspace', body: 'Drag tabs to move panels and dividers to resize them. Use Workspace to choose a display mode. Your layout and display mode save for your account in this browser.' },
 ] as const
 

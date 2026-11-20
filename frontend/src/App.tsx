@@ -182,7 +182,7 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
   const [catalogRevision, setCatalogRevision] = useState(0)
   const [initialLink] = useState(() => readSearchLink(window.location.search))
   const { draft, updateDraft, setCenter } = useSearchDraft(initialLink.draft)
-  const [selected, setSelected] = useState<string[] | null>(null)
+  const [selected, setSelected] = useState<string[] | null>(initialLink.dataset_ids ?? null)
   const [pickCenter, setPickCenter] = useState(false)
   const [drawCircle, setDrawCircle] = useState(false)
   const [searchElapsed, setSearchElapsed] = useState<number | null>(null)
@@ -502,7 +502,7 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
   }, [])
 
   useEffect(() => {
-    if (config && !catalogLoading && !catalogError && initialLink.autoload && consumeAutoload()) submitSearch(initialLink.draft, null)
+    if (config && !catalogLoading && !catalogError && initialLink.autoload && consumeAutoload()) submitSearch(initialLink.draft, initialLink.dataset_ids ?? null)
   }, [config, catalogLoading, catalogError, initialLink, consumeAutoload, submitSearch])
 
   return <WorkspaceContext.Provider value={{
@@ -550,6 +550,7 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
               <button className="menu-reset" onClick={resetLayout}><RotateCcw size={15}/> Reset layout</button>
             </div>}
           </div>
+          <button className="header-button compact" aria-label="Reset workspace layout" title="Reset layout" onClick={resetLayout}><RotateCcw size={17}/></button>
           <button className="header-button compact" aria-label="Open help panel" title="Open help" onClick={() => openPanel('help')}><CircleHelp size={18}/></button>
           <button className="header-button" onClick={() => openPanel('feedback')}><MessageSquare size={16}/><span>Feedback</span></button>
           <Announcements shareFeedback={() => openPanel('feedback')}/>
@@ -570,7 +571,8 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
       {accountError && <p className="inline-error account-error" role="alert">{accountError}</p>}
       <div className="dock-shell">
         <DockviewReact components={components} onReady={onReady} theme={theme} defaultTabComponent={PanelTab}
-          rightHeaderActionsComponent={HeaderActions} popoutUrl="/popout.html"/>
+          rightHeaderActionsComponent={HeaderActions} popoutUrl="/popout.html"
+          floatingGroupDragHandle="titlebar" floatingGroupBounds="boundedWithinViewport"/>
       </div>
       <footer className="app-footer"><span>Azimuth</span><span>WGS 84 · Spatial search</span></footer>
       {step >= 0 && <Tour step={step} setStep={setTourStep}/>}

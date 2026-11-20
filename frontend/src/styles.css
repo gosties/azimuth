@@ -21,6 +21,7 @@
   --header: #262522;
   --header-border: #4e4b45;
   --header-text: #f7f3eb;
+  --floating-header-background: var(--accent);
   --map-fill: #e8e5de;
   --body-size: 14px;
   --detail-size: 13px;
@@ -58,6 +59,7 @@
   --header: #171716;
   --header-border: #43423e;
   --header-text: #f0ede6;
+  --floating-header-background: var(--header);
   --map-fill: #292927;
 }
 * { box-sizing: border-box; }
@@ -121,13 +123,30 @@ svg { flex-shrink: 0; vertical-align: middle; }
   --dv-icon-hover-background-color: var(--accent-soft);
   --dv-floating-group-border: 1px solid var(--strong-line);
   --dv-floating-box-shadow: var(--shadow);
-  --dv-floating-titlebar-background-color: var(--subtle);
+  --dv-floating-titlebar-background-color: var(--floating-header-background);
+  --dv-floating-titlebar-height: 22px;
   --dv-context-menu-background-color: var(--surface);
   --dv-context-menu-color: var(--ink);
   --dv-spacing-padding: 0px;
 }
 .dockview-theme-azimuth .dv-groupview { border: 0; }
 .dockview-theme-azimuth .dv-tabs-and-actions-container { box-shadow: inset 0 -1px var(--line); }
+.dockview-theme-azimuth .dv-floating-titlebar {
+  box-shadow: inset 3px 0 var(--amber), inset 0 -1px var(--strong-line);
+  cursor: grab;
+  touch-action: none;
+}
+.dockview-theme-azimuth .dv-floating-titlebar::after {
+  content: '';
+  display: block;
+  width: 30px;
+  height: 3px;
+  margin: 9px auto 0;
+  border-radius: 2px;
+  background: var(--header-text);
+  pointer-events: none;
+}
+.dockview-theme-azimuth .dv-floating-titlebar:active { cursor: grabbing; }
 .dockview-theme-azimuth .dv-tab.dv-active-tab { box-shadow: inset 0 2px var(--accent); }
 .dockview-theme-azimuth .dv-split-view-container:not(.dv-splitview-disabled) > .dv-sash-container > .dv-sash:not(.dv-disabled)::after {
   content: '';

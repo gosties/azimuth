@@ -1,10 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { SlidersHorizontal } from 'lucide-react'
 import { number } from './workspace'
+import { MAX_MAP_POINTS } from './mapPointLimits'
 
 export function usePointBudget(session: string | undefined, configuredCeiling?: number) {
   const ceiling = configuredCeiling != null && Number.isFinite(configuredCeiling) && configuredCeiling >= 1
-    ? Math.floor(configuredCeiling) : 3000
+    ? Math.min(Math.floor(configuredCeiling), MAX_MAP_POINTS) : 3000
   const initial = Math.min(3000, ceiling)
   const [chosen, setChosen] = useState<{ session: string | undefined; value: number } | null>(null)
   const [pending, setPending] = useState<{ session: string | undefined; value: number } | null>(null)

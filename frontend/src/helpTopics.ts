@@ -4,14 +4,12 @@ export type HelpSection = {
   steps?: string[]
   paragraphs?: string[]
 }
-
 export type HelpTopic = {
   id: string
   title: string
   summary: string
   sections: HelpSection[]
 }
-
 export const helpTopics: HelpTopic[] = [
   {
     id: 'overview',
@@ -96,7 +94,7 @@ export const helpTopics: HelpTopic[] = [
         id: 'local-add',
         title: 'Add local data',
         steps: [
-          'Choose Add local data in the Dataset catalog toolbar above the list. The Local data dialog offers Add data, Manage local, and Format help.',
+          'Choose Add local data in the Dataset catalog toolbar above the list. The point repository builder has three regions: a source browser, one layer inspector, and a workspace for the catalog you are building. Manage local catalogs and Local data help are separate toolbar actions.',
           'In Add data, select a point Parquet file or GIS source. Validate the source, inspect available layers, and choose the layer and optional date/time column before importing.',
           'Close the dialog and select the imported datasets in the shared catalog tree. Run a spatial search to search selected shared and local datasets together.',
         ],
@@ -109,22 +107,27 @@ export const helpTopics: HelpTopic[] = [
         id: 'local-parquet',
         title: 'Point Parquet columns',
         paragraphs: [
-          'Map numeric X/easting and Y/northing columns and explicitly choose their source coordinate system: WGS84 longitude/latitude (EPSG:4326), Web Mercator (EPSG:3857), or WGS84 UTM with hemisphere and zone. Coordinate ranges alone do not prove a CRS. GeoParquet geometry metadata does not establish the CRS of separate scalar X/Y columns. Points are converted in this browser to WGS84 longitude/latitude; source files remain unchanged. Map a stable, unique, nonempty object ID column. IDs can be integer, UUID, or text. Optionally choose a date/time column for later date filtering.',
+          'Map numeric X/easting and Y/northing columns and explicitly choose their source coordinate system: WGS84 longitude/latitude (EPSG:4326), Web Mercator (EPSG:3857), or WGS84 UTM with hemisphere and zone. Coordinate ranges alone do not prove a CRS. GeoParquet geometry metadata does not establish the CRS of separate scalar X/Y columns. Points are converted in this browser to WGS84 longitude/latitude; source files remain unchanged. Stable internal row IDs are generated for every dataset. An optional source identifier remains a full-width attribute, including leading zeros, blanks and duplicates. Optionally choose a date/time column for later date filtering.',
           'Scalar text, numeric, boolean, UUID, date, and timestamp attributes are supported. Nested and binary attributes are rejected. EPSG:4326 Parquet imports allow 512 MiB and 5,000,000 rows per file. Reprojection is limited to 128 MiB and 500,000 rows.',
         ],
+      },
+      {
+        id: 'local-csv',
+        title: 'Guided CSV import',
+        paragraphs: ['Browse a CSV file in the source browser and open it in the inspector. Confirm suggested coordinate columns and optional source identifier or searchable date/time. Decimal degrees, DMS, MGRS, Web Mercator and WGS84 UTM are supported. Keep the full-width fields you need, then validate the entire file and review the bounded sample. Invalid rows block import until the source or mapping is corrected; rows are never silently dropped. Add the configured dataset to the workspace; no catalog is written yet. Add other layers, then name the catalog and choose Build catalog once. After building, the receipt below the workspace offers Save [catalog name] bundle, Add another layer to [catalog name], and Manage catalog. The add-layer action appends to the named catalog without rebuilding existing layers.'],
       },
       {
         id: 'local-geojson',
         title: 'GeoJSON and JSON',
         paragraphs: [
-          'Select a .geojson or .json containing GeoJSON point features. Coordinates use WGS84 longitude, latitude order. A general JSON document is not a GeoJSON layer. Validate the layer before importing; each accepted feature must contain exactly one location.',
+          'Select a .geojson or .json containing GeoJSON point features. Coordinates use WGS84 longitude, latitude order. A general JSON document is not a GeoJSON layer. Scan the source, confirm its layers and selected full-width fields, then review before importing.',
         ],
       },
       {
         id: 'local-kml',
         title: 'KML point placemarks',
         paragraphs: [
-          'Select a .kml with point placemarks. KML defines WGS84 longitude/latitude coordinates, and ExtendedData attributes are retained as strings. Line and polygon placemarks cannot be imported as points. NetworkLinks and external XML entities are rejected. Extract archives first and choose a self-contained KML file.',
+          'Select a .kml with point placemarks. KML defines WGS84 longitude/latitude coordinates, and ExtendedData attributes are retained as strings. Line and polygon placemarks are shown and skipped. Only point placemarks can be imported; no centroids are substituted. NetworkLinks and external XML entities are rejected. Extract archives first and choose a self-contained KML file.',
         ],
       },
       {
@@ -132,30 +135,30 @@ export const helpTopics: HelpTopic[] = [
         title: 'Shapefile companion files and projection',
         paragraphs: [
           'Select matching .shp, .shx, .dbf, and .prj files together; all must have the same basename. Include .cpg when supplied to identify text encoding. The .prj identifies the source coordinate system so recognized coordinates can be transformed to WGS84.',
-          'A .shp by itself is incomplete. Missing or unknown projection information is rejected. Choose a point layer; geometries containing several locations are not reduced to a centroid.',
+          'A .shp by itself is incomplete. Missing or unknown projection information is rejected. Choose a point layer. Line, polygon and multi-location layers are shown with a skip reason and are not converted to centroids.',
         ],
       },
       {
         id: 'local-geopackage',
         title: 'GeoPackage layers',
         paragraphs: [
-          'Select a .gpkg and validate it to inspect available layers, geometry types, fields, and coordinate systems. Choose one eligible point layer. Recognized coordinates are transformed to WGS84; missing or unknown coordinate systems require correction before importing.',
+          'Select a .gpkg and validate it to inspect available layers, geometry types, fields, and coordinate systems. Step through each layer, inspect its geometry and feature count, and choose eligible point layers. Recognized coordinates are transformed to WGS84; missing or unknown coordinate systems require correction before importing.',
         ],
       },
       {
         id: 'local-geodatabase',
         title: 'File geodatabase folder',
         paragraphs: [
-          'Choose the entire .gdb folder, retaining every internal file and its relative path. An individual internal file is not a complete geodatabase. Validate the folder, then select one eligible point layer with a recognized coordinate system.',
+          'Choose the entire .gdb folder, retaining every internal file and its relative path. Folder opens the browser’s read-only directory chooser. You can also drag a folder from File Explorer into Browse sources; no files are uploaded. If directory access is unavailable or denied, the inline alternatives offer folder drops or individual files without opening another permission prompt. An individual internal file is not a complete geodatabase. Click any folder or geodatabase row once to open it. Use Info beside a geodatabase to check cached layer metadata without navigating or inspecting. The summary lists point, other and unknown geometry; unknown geometry does not mean there are no point layers. Use the clickable ancestor breadcrumbs, Up, or Back to leave deep folders without scrolling to the top. Open the geodatabase to inventory its layers. Click a source to select it, then choose Inspect selected or drag an eligible layer into Inspect a layer. Double-click has no additional action. Folder rows open with one click. Use Browse layers for other containers. Selection, browser location and filters stay in place during inspection. Search by any words across source or layer names, geometry metadata and formats, such as water point. Filters include nested folders within the granted selection, with a cancellable limit of 4,096 entries and 32 levels; partial results and unreadable sources are identified. CSV and Parquet have no geometry type until their coordinates are mapped. Duplicate names require an explicit choice: Update existing layer replaces its rows at Build while retaining its identity, or Create with new name keeps both layers. Shapefile and available GeoJSON or KML geometry appear beside source names. Only the chosen layer is read for configuration. Each layer has its own dataset name, retained fields and optional time mapping. Add it to the workspace before choosing another. Unsupported geometries are shown and skipped. The workspace resource estimate checks total rows, files, layers and browser storage before Build catalog.',
         ],
       },
       {
         id: 'local-backup',
         title: 'Manage, back up, and restore local catalogs',
         paragraphs: [
-          'In Manage local, Export downloads a prepared .azimuth package containing catalog metadata and point Parquet files. Open prepared catalog restores a package with its dataset identities and snapshot, without needing continuing access to an external folder.',
+          'In Manage local, Save bundle downloads one portable .azimuth package containing the named catalog, its shared lookup, and full-width layer files. Open / reconnect catalog bundle restores a package with its dataset identities and snapshot, without needing continuing access to an external folder.',
           'Local copies use browser-private storage scoped to this application origin, browser profile, and signed-in account. Browser storage can be cleared or evicted, so keep exported packages as backups. Removing a catalog deletes its browser copy and preserves the original source and downloaded backups. Close searches using the catalog before removing it.',
-          'Shared and local searches run concurrently and publish complete combined results. A failed or canceled source does not become a successful partial result. Search links are unavailable when local datasets are selected; local or mixed result exports are assembled in the browser as JSON.',
+          'Shared and local searches run concurrently and publish complete combined results. A failed or canceled source does not become a successful partial result. Copy link shares the search settings and selected shared datasets. Local-only links open the settings for the recipient to choose datasets. Local and mixed result exports are assembled in the browser as JSON.',
         ],
       },
     ],
@@ -206,9 +209,9 @@ export const helpTopics: HelpTopic[] = [
         id: 'map-points',
         title: 'Control points on the map',
         paragraphs: [
-          'Choose Points, Clusters, or Hex bins from Display in the map toolbar. Points is the default. Switching display reuses loaded points without fetching again. Legend opens for each new search and can be collapsed while you explore. Its collapsed key shows the color meaning, loaded point count, displayed group count, grouping size, and whether the display is partial or updating.',
-          'Open Legend to adjust the point or cluster dataset palette, or choose a density palette for hex bins, including Ember from white to burnt orange. Cluster color identifies the largest dataset; circle size and labels count loaded points. Translucent hex colors automatically adapt to loaded bin counts. The legend shows the current count range and colors in use; colors are relative to the loaded display. Choose Fine, Standard, or Coarse grouping to control group size; zooming also changes the grid. The legend shows the grid scale and average loaded points per group.',
-          'Group labels count loaded points only, across visible datasets. When the point budget leaves matches unloaded, the display is partial: these are not totals for all search matches. Select a group to inspect dataset counts, zoom to its extent, or choose a loaded record. Single-point groups open that record directly. Coincident points remain inspectable through the record list and exact-coordinate overlap browser.',
+          'Choose Points, Clusters, or Hex bins from Display. The initial map can show up to 3,000 real matching points when the results arrive. Adjust the point budget to draw more individual records. Resize the legend from its lower-right corner, sort a column by its heading, and use Columns or right-click a heading to choose which fields to show. Open Settings for filters, palettes and visibility actions.',
+          'Use the legend to select point, cluster and hex palettes, including Ember from white to burnt orange. Cluster color identifies the largest dataset in each group. Hex colors reflect counts in occupied cells. Fine, Standard and Coarse adjust the grid size. Zooming changes the grid scale.',
+          'Clusters and hex bins count matching records from visible datasets in the current view. For large results the map retrieves cell counts and dataset totals. Select a group to see its breakdown, then zoom in and switch to Points to inspect individual records. Smaller groups built from loaded points also offer a record list.',
           'Pan and zoom to load points in view. Use the map legend to show or hide datasets. Filter by name or Shift-click to show or hide a visible range. Map visibility leaves the result counts and exports unchanged.',
           'Open Map points next to the map count to adjust the point budget. Each search starts with up to 3,000 points, subject to the configured ceiling. Add to the budget or choose All to draw up to the ceiling in the current viewport across visible datasets.',
           'The budget stays in effect while you pan or filter. Choose Reset to restore the starting budget. Displaying many points can slow the browser or exhaust memory. Requests for 100,000 points or more require confirmation.',
