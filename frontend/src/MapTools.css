@@ -1,6 +1,6 @@
 .az-map-panel { container-type: inline-size; }
 .az-map-panel .map-toolbar-icon { color: var(--muted); }
-.az-map-panel .map-viewport { background: #e7e6e3; }
+.az-map-panel .map-viewport { background: #e7e6e3; container-type: size; }
 .az-map-panel.map-dark .map-viewport { background: #292928; }
 .az-map-panel .ol-layer canvas { filter: none; }
 .az-map-panel .map-canvas:focus-visible { outline: 2px solid var(--accent, #b87224); outline-offset: -2px; }
@@ -23,25 +23,42 @@
   box-shadow: var(--shadow);
   font-size: var(--detail-size);
 }
-.az-map-legend { bottom: 28px; left: 10px; max-width: calc(100% - 20px); max-height: calc(100% - 36px); overflow: auto; }
+.az-map-legend { bottom: 28px; left: 10px; width: 292px; max-width: calc(100% - 20px); max-height: calc(100cqh - 40px); overflow: auto; }
 .az-map-legend summary {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   padding: 6px 8px;
   cursor: pointer;
   list-style: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
 }
 .az-map-legend summary::-webkit-details-marker { display: none; }
 .az-map-legend summary > span { color: var(--muted); }
 .az-map-legend[open] summary { border-bottom: 1px solid var(--line); }
-.az-map-legend[open] summary > svg:last-child { transform: rotate(180deg); }
+.az-map-legend[open] .az-legend-summary-title > svg:last-child { transform: rotate(180deg); }
+.az-legend-summary-title, .az-legend-summary-key, .az-legend-summary-stats { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 10.5px; }
+.az-legend-summary-title { color: var(--ink); font-size: var(--detail-size); }
+.az-legend-summary-title > svg:last-child { margin-left: auto; }
+.az-legend-summary-key > svg { flex-shrink: 0; color: var(--ink); }
+.az-legend-visible { margin-left: auto; font-variant-numeric: tabular-nums; }
+.az-legend-summary-stats b { margin-left: auto; padding: 0 4px; border-radius: 3px; color: var(--amber); background: var(--amber-soft); font-size: 10px; }
+.az-legend-mini-ramp { display: flex; overflow: hidden; border: 1px solid var(--strong-line); border-radius: 2px; }
+.az-legend-mini-ramp i { width: 9px; height: 9px; }
 .az-legend-body {
-  width: min(275px, calc(100cqw - 24px));
-  max-height: min(34vh, 200px);
-  overflow: auto;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  max-height: min(440px, calc(100cqh - 120px));
+  min-height: 0;
   padding: 6px;
 }
+.az-legend-controls { flex: 0 0 auto; }
 .az-legend-palette, .az-legend-filters, .az-legend-actions, .az-legend-caption {
   display: flex;
   align-items: center;
@@ -50,11 +67,17 @@
 }
 .az-legend-palette { flex-direction: row; justify-content: space-between; }
 .az-legend-palette select { width: auto; min-width: 0; min-height: var(--map-control-height); font-size: inherit; padding: 2px 5px; }
+.az-legend-note { color: var(--muted); font-size: 10.5px; line-height: 1.4; margin: 3px 2px 6px; }
+.az-legend-density, .az-legend-clusters { display: flex; align-items: flex-end; justify-content: space-around; gap: 5px; padding: 6px 2px; }
+.az-legend-density > span, .az-legend-clusters > span { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.az-legend-density i { width: 30px; height: 27px; clip-path: polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%); outline: 1px solid var(--strong-line); }
+.az-legend-clusters i { border: 1.4px solid var(--ink); border-radius: 50%; background: var(--accent-soft); box-sizing: border-box; }
+.az-legend-swatch.neutral { background: var(--subtle); border-color: var(--muted); border-radius: 2px; }
 .az-legend-filters input { min-width: 0; flex: 1; min-height: var(--map-control-height); font-size: inherit; padding: 2px 5px; }
 .az-legend-actions button { min-height: var(--map-control-height); }
 .az-legend-actions > span, .az-legend-caption > span:last-child { margin-left: auto; }
 .az-legend-caption { color: var(--muted); padding-inline: 5px; }
-.az-legend-rows { list-style: none; padding: 0; margin: 0; }
+.az-legend-rows { list-style: none; padding: 0; margin: 0; overflow: auto; min-height: 28px; overscroll-behavior: contain; }
 .az-legend-rows button {
   width: 100%;
   display: grid;
@@ -145,3 +168,17 @@
 .az-map-panel .map-toolbar > div { min-width: 0; }
 .az-input-summary { color: var(--muted); font-size: var(--detail-size); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @container (max-width: 480px) { .az-map-panel .map-toolbar strong { display: none; } }
+.az-map-display-controls { display: flex; flex: 0 1 auto; align-items: center; gap: 8px; }
+.az-map-display-select { display: inline-flex; flex-direction: row; flex: 0 0 auto; align-items: center; gap: 4px; white-space: nowrap; font-size: var(--detail-size); color: var(--muted); }
+.az-map-display-select select { width: 92px; min-height: 25px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+.az-map-display-controls .basemap-select { min-width: 0; max-width: min(180px, calc(100cqw - 180px)); }
+.az-map-display-controls .basemap-select select { min-width: 0; width: 100%; }
+.az-aggregate-inspector { z-index: 3; font-size: var(--detail-size); }
+.az-aggregate-inspector header, .az-aggregate-inspector footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.az-aggregate-inspector p { color: var(--muted); margin: 8px 0; line-height: 1.4; }
+.az-group-datasets, .az-group-records { list-style: none; padding: 0; margin: 8px 0; }
+.az-group-datasets li { display: flex; gap: 6px; align-items: center; margin-block: 4px; }
+.az-group-datasets strong { margin-left: auto; }
+.az-group-records button { width: 100%; display: flex; justify-content: space-between; gap: 8px; text-align: left; padding: 4px; }
+.az-group-records button:hover { background: var(--subtle); }
+@container (max-width: 480px) { .az-map-display-select { font-size: 11px; gap: 3px; } .az-map-display-select select { width: 82px; } .az-map-display-controls { gap: 4px; } }

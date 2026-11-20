@@ -469,6 +469,10 @@ textarea { resize: vertical; }
 
 .wide-table, .field-viewer { font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
 .field-value { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; max-width: 100%; }
+.record-url { color: var(--amber); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; cursor: pointer; }
+.record-url svg { display: inline; vertical-align: middle; margin-left: 4px; flex-shrink: 0; }
+.record-url:hover { text-decoration-thickness: 2px; }
+.record-url:focus-visible { outline-offset: 2px; border-radius: 2px; }
 .field-preview { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .field-preview-button { background: var(--amber-soft); color: var(--amber); border: 0; border-radius: 3px; padding: 2px 4px; font-size: 10px; font-weight: 700; white-space: nowrap; }
 .field-preview-button:hover { text-decoration: underline; }

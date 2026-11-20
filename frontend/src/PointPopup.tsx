@@ -134,7 +134,7 @@ function PointFields({ session, selection, cache, showNulls, setShowNulls }: {
     {hasNulls && !visibleFields.length && <p className="quiet">{details ? 'All fields are null.' : 'All preview fields are null.'}</p>}
     {!!visibleFields.length && <dl className="point-fields">{visibleFields.map(field => <div key={field.name} title={field.type}>
       <dt>{field.name}</dt><dd>{field.value == null ? <em className="quiet">null</em> :
-        <FieldValue session={session.id} record={selection} name={field.name} index={field.index} value={field.value} extent={field.extent} linkUrls/>}</dd></div>)}</dl>}
+        <FieldValue session={session.id} record={selection} name={field.name} index={field.index} value={field.value} extent={field.extent}/>}</dd></div>)}</dl>}
   </>
 }
 

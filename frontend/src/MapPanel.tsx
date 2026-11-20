@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { CircleDashed, Crosshair, Ellipsis, Layers, LocateFixed, MapPin, Maximize, Minus, Plus } from 'lucide-react'
 import Feature from 'ol/Feature'
 import Map from 'ol/Map'
@@ -8,8 +8,10 @@ import WMTSCapabilities from 'ol/format/WMTSCapabilities'
 import LineString from 'ol/geom/LineString'
 import Point from 'ol/geom/Point'
 import MultiPoint from 'ol/geom/MultiPoint'
+import Polygon from 'ol/geom/Polygon'
 import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
+import VectorImageLayer from 'ol/layer/VectorImage'
 import VectorTileLayer from 'ol/layer/VectorTile'
 import TileArcGISRest from 'ol/source/TileArcGISRest'
 import TileWMS from 'ol/source/TileWMS'
@@ -17,7 +19,7 @@ import VectorSource from 'ol/source/Vector'
 import VectorTileSource from 'ol/source/VectorTile'
 import WMTS, { optionsFromCapabilities } from 'ol/source/WMTS'
 import XYZ from 'ol/source/XYZ'
-import { Circle, Fill, RegularShape, Stroke, Style } from 'ol/style'
+import { Circle, Fill, RegularShape, Stroke, Style, Text } from 'ol/style'
 import { defaults as controls } from 'ol/control/defaults'
 import { mapInteractions, bindMapHover } from './mapInteractions'
 import { ViewportCount } from './ViewportCount'
@@ -28,10 +30,12 @@ import { bindCircleGesture, type CirclePreview } from './circleGesture'
 import { circleBoundary, EARTH_RADIUS, geographicPoint, normalizeLongitude, project } from './geometry'
 import { MapContextMenu, type MapMenuPosition } from './MapContextMenu'
 import { MapLegend } from './MapLegend'
-import { datasetColorSlots, mapColorResolver, readMapPalette, type MapPalette } from './mapPalette'
+import { clusterRadius, datasetColorSlots, densityColor, densityFill, readDensityPalette, mapColorResolver, readMapPalette, type DensityPalette, type MapPalette } from './mapPalette'
 import { useMapCoordinates } from './mapCoordinates'
 import { PointPopup } from './PointPopup'
 import { useViewportPoints } from './useViewportPoints'
+import { MapAggregationAccumulator, aggregationResolution, aggregationPixelSize, aggregationGridMetrics, readAggregationSize, type AggregationSize, MERCATOR_WORLD_WIDTH } from './mapAggregation'
+import { MapAggregateInspector } from './MapAggregateInspector'
 import { number, parseRadius, queryCenters, readStorage, units, useWorkspace, writeStorage } from './workspace'
 import './MapTools.css'
 
@@ -97,6 +101,7 @@ const initialCenter = project({ latitude: 22, longitude: -20 })
 const initialZoom = 2.4
 const centerMarker = marker('#e7a24a', '#fff6de', 5)
 const emptyHidden: ReadonlySet<string> = new Set()
+type DisplayMode = 'points' | 'clusters' | 'hexes'
 
 const boundaryCenterLimit = 64
 const inputStyle = new Style({ image: new RegularShape({
@@ -138,12 +143,31 @@ export function MapPanel() {
   const matchingDatasets = useMemo(() => session?.datasets.filter(dataset => dataset.count > 0) ?? [], [session?.datasets])
   const paletteKey = workspace.user?.id ? 'azimuth.mapPalette.' + workspace.user.id : null
   const [palette, setPalette] = useState(() => readMapPalette(paletteKey ? readStorage(paletteKey) : null))
+  const clusterPaletteKey = workspace.user?.id ? 'azimuth.clusterPalette.' + workspace.user.id : null
+  const densityPaletteKey = workspace.user?.id ? 'azimuth.hexPalette.' + workspace.user.id : null
+  const clusterSizeKey = workspace.user?.id ? 'azimuth.clusterSize.' + workspace.user.id : null
+  const hexSizeKey = workspace.user?.id ? 'azimuth.hexSize.' + workspace.user.id : null
+  const [clusterPalette, setClusterPalette] = useState(() => readMapPalette(clusterPaletteKey ? readStorage(clusterPaletteKey) ?? (paletteKey ? readStorage(paletteKey) : null) : null))
+  const [densityPalette, setDensityPalette] = useState(() => readDensityPalette(densityPaletteKey ? readStorage(densityPaletteKey) : null))
+  const liveDensityPalette = useRef(densityPalette)
+  const [clusterSize, setClusterSize] = useState<AggregationSize>(() => readAggregationSize(clusterSizeKey ? readStorage(clusterSizeKey) : null))
+  const [hexSize, setHexSize] = useState<AggregationSize>(() => readAggregationSize(hexSizeKey ? readStorage(hexSizeKey) : null))
+  useEffect(() => {
+    const pointPreference = paletteKey ? readStorage(paletteKey) : null
+    setPalette(readMapPalette(pointPreference))
+    setClusterPalette(readMapPalette((clusterPaletteKey ? readStorage(clusterPaletteKey) : null) ?? pointPreference))
+    setDensityPalette(readDensityPalette(densityPaletteKey ? readStorage(densityPaletteKey) : null))
+    setClusterSize(readAggregationSize(clusterSizeKey ? readStorage(clusterSizeKey) : null))
+    setHexSize(readAggregationSize(hexSizeKey ? readStorage(hexSizeKey) : null))
+  }, [paletteKey, clusterPaletteKey, densityPaletteKey, clusterSizeKey, hexSizeKey])
   const [colorOrder, setColorOrder] = useState(() => ({ sessionId, matchingDatasets, slots: datasetColorSlots(matchingDatasets) }))
   if (colorOrder.sessionId !== sessionId || colorOrder.matchingDatasets !== matchingDatasets) {
     setColorOrder({ sessionId, matchingDatasets, slots: datasetColorSlots(matchingDatasets, colorOrder.sessionId === sessionId ? colorOrder.slots : undefined) })
   }
   const colorFor = useMemo(() => mapColorResolver(palette, colorOrder.slots), [palette, colorOrder.slots])
+  const clusterColorFor = useMemo(() => mapColorResolver(clusterPalette, colorOrder.slots), [clusterPalette, colorOrder.slots])
   const liveColorFor = useRef(colorFor)
+  const liveClusterColorFor = useRef(clusterColorFor)
   const shapeKey = useMemo(() => query ? JSON.stringify([queryCenters(query).map(({ latitude, longitude }) => [latitude, longitude]), query.radius_m]) : null, [query])
   const searchGeometry = useMemo(() => query ? mapSearchGeometry(query) : null, [shapeKey])
   const pointBudget = usePointBudget(sessionId, config?.max_map_points)
@@ -164,6 +188,15 @@ export function MapPanel() {
   const visibleIds = useMemo(() => hidden.size ? matchingDatasets.filter(dataset => !hidden.has(dataset.id)).map(dataset => dataset.id) : undefined, [hidden, matchingDatasets])
   const formatted = useMapCoordinates(pointer, menu?.center ?? null)
   const [zoom, setZoom] = useState(initialZoom)
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('points')
+  const aggregationSize = displayMode === 'clusters' ? clusterSize : displayMode === 'hexes' ? hexSize : 'standard'
+  const [renderedGroups, setRenderedGroups] = useState(0)
+  const canonicalCount = useRef(0)
+  const [loadedPoints, setLoadedPoints] = useState(0)
+  const liveDisplayMode = useRef(displayMode)
+  liveDisplayMode.current = displayMode
+  const [aggregate, setAggregate] = useState<Feature<Point | Polygon> | null>(null)
+  const aggregateCache = useRef({ revision: -1, resolution: -1, modes: new globalThis.Map<DisplayMode, {size: AggregationSize; accumulator: MapAggregationAccumulator}>() })
   const [layers] = useState(() => {
     const basemap = new TileLayer<RasterSource>()
     const vectorBasemap = new VectorTileLayer()
@@ -171,7 +204,9 @@ export function MapPanel() {
       feature.get('center') ? centerMarker : boundaryStyle })
     const draft = new VectorLayer({ source: new VectorSource(), style: feature => feature.get('center') ? centerMarker : boundaryStyle })
     const styles = new globalThis.Map<string, Style>()
-    const points = new VectorLayer({ source: new VectorSource(), style: feature => {
+    // Keep one viewport-sized raster for unchanged points between display
+    // switches. Source, palette, and settled view changes redraw the image.
+    const points = new VectorImageLayer({ imageRatio: 1, source: new VectorSource(), style: feature => {
       const fill = liveColorFor.current((feature.get('row') as ThinRow).table_id)
       let style = styles.get(fill)
       if (!style) {
@@ -182,7 +217,31 @@ export function MapPanel() {
     } })
     const inputs = new VectorLayer({ source: new VectorSource(), style: inputStyle })
     const active = new VectorLayer({ source: new VectorSource(), style: marker('#fff6de', '#8f5116', 7) })
-    return { basemap, vectorBasemap, search, draft, points, inputs, active }
+    const aggregateStyles = new globalThis.Map<string, Style>()
+    const aggregates = new VectorLayer({ source: new VectorSource<Feature<Point | Polygon>>(), style: feature => {
+      const dominant = feature.get('dominantDataset') as string
+      const count = feature.get('count') as number
+      const hex = feature.getGeometry() instanceof Polygon
+      const fill = hex ? densityFill(count, liveDensityPalette.current) : liveClusterColorFor.current(dominant)
+      const outline = hex ? densityColor(count, liveDensityPalette.current) : '#6b4b26'
+      const key = `${hex}:${fill}:${count}`
+      let style = aggregateStyles.get(key)
+      if (!style) {
+        if (aggregateStyles.size > 2048) aggregateStyles.clear()
+        style = new Style({
+          image: new Circle({ radius: clusterRadius(count), fill: new Fill({ color: fill }), stroke: new Stroke({ color: '#2b2926', width: 1.5 }) }),
+          fill: new Fill({ color: fill }), stroke: new Stroke({ color: outline, width: 1 }),
+          text: new Text({ text: number.format(count), font: 'bold 12px sans-serif', fill: new Fill({ color: '#fff' }), stroke: new Stroke({ color: '#24221f', width: 3 }) }),
+        })
+        aggregateStyles.set(key, style)
+      }
+      return style
+    } })
+    aggregates.setZIndex(1)
+    inputs.setZIndex(2)
+    active.setZIndex(2)
+    draft.setZIndex(2)
+    return { basemap, vectorBasemap, search, draft, points, inputs, active, aggregates }
   })
 
   useLayoutEffect(() => {
@@ -190,9 +249,39 @@ export function MapPanel() {
     layers.points.changed()
   }, [colorFor, layers])
 
+  useLayoutEffect(() => {
+    liveClusterColorFor.current = clusterColorFor
+    layers.aggregates.changed()
+  }, [clusterColorFor, layers])
+
+  useLayoutEffect(() => {
+    liveDensityPalette.current = densityPalette
+    layers.aggregates.changed()
+  }, [densityPalette, layers])
+
+  function changeDensityPalette(next: DensityPalette) {
+    setDensityPalette(next)
+    if (densityPaletteKey) writeStorage(densityPaletteKey, next)
+  }
+
   function changePalette(next: MapPalette) {
-    setPalette(next)
-    if (paletteKey) writeStorage(paletteKey, next)
+    if (displayMode === 'clusters') {
+      setClusterPalette(next)
+      if (clusterPaletteKey) writeStorage(clusterPaletteKey, next)
+    } else {
+      setPalette(next)
+      if (paletteKey) writeStorage(paletteKey, next)
+    }
+  }
+
+  function changeAggregationSize(next: AggregationSize) {
+    if (displayMode === 'clusters') {
+      setClusterSize(next)
+      if (clusterSizeKey) writeStorage(clusterSizeKey, next)
+    } else if (displayMode === 'hexes') {
+      setHexSize(next)
+      if (hexSizeKey) writeStorage(hexSizeKey, next)
+    }
   }
 
   function setCenter(center: Center) {
@@ -245,7 +334,7 @@ export function MapPanel() {
     const node = target.current
     const map = new Map({
       target: node,
-      layers: [layers.basemap, layers.vectorBasemap, layers.search, layers.points, layers.inputs, layers.active, layers.draft],
+      layers: [layers.basemap, layers.vectorBasemap, layers.search, layers.points, layers.inputs, layers.active, layers.draft, layers.aggregates],
       view: new View({ center: initialCenter, zoom: initialZoom, minZoom: 1, maxZoom: 23, multiWorld: true }),
       interactions: mapInteractions(),
       controls: controls({ zoom: false, rotate: false, attributionOptions: { collapsible: false } }),
@@ -286,7 +375,8 @@ export function MapPanel() {
     }
     const observer = new MutationObserver(rebind)
     observer.observe(owner.documentElement, { childList: true, subtree: true })
-    map.on('moveend', () => setZoom(map.getView().getZoom() ?? 2))
+    map.on('movestart', () => setAggregate(null))
+    map.on('moveend', () => { setZoom(map.getView().getZoom() ?? 2); setAggregate(null) })
     const unbindHover = bindMapHover(map, node, setPointer)
     map.on('singleclick', event => {
       const current = live.current
@@ -295,6 +385,16 @@ export function MapPanel() {
         setCenter(geographicPoint(event.coordinate))
         return
       }
+      if (liveDisplayMode.current !== 'points') {
+        const group = map.forEachFeatureAtPixel(event.pixel, feature => feature as Feature<Point | Polygon>, {
+          layerFilter: layer => layer === layers.aggregates, hitTolerance: 6,
+        })
+        const row = group?.get('row') as ThinRow | undefined
+        setAggregate(group && !row ? group : null)
+        current.setSelection(row ? { ...row, point: row, locate: false, origin: 'map' } : null)
+        return
+      }
+      setAggregate(null)
       const row = map.forEachFeatureAtPixel(event.pixel, feature => feature.get('row') as ThinRow | undefined, {
         layerFilter: layer => layer === layers.points, hitTolerance: 6,
       })
@@ -374,6 +474,81 @@ export function MapPanel() {
   )
 
   useEffect(() => {
+    const source = layers.points.getSource()!
+    const aggregateSource = layers.aggregates.getSource()!
+    layers.points.setVisible(displayMode === 'points')
+    layers.aggregates.setVisible(displayMode !== 'points')
+    setAggregate(null)
+    let added: Feature<Point>[] = []
+    let removed = false
+    function update(initial = false) {
+      setLoadedPoints(canonicalCount.current)
+      const resolution = mapRef.current?.getView().getResolution()
+      if (!resolution) return
+      const bucket = aggregationResolution(resolution)
+      let cache = aggregateCache.current
+      if (cache.revision !== source.getRevision() || cache.resolution !== bucket) {
+        const active = cache.modes.get(displayMode)
+        // Stream append batches update only touched bins. Inactive caches must
+        // release old members immediately, including after scope clears.
+        if (!initial && !removed && added.length && active?.size === aggregationSize && cache.resolution === bucket && displayMode !== 'points') {
+          cache.modes.clear()
+          cache.modes.set(displayMode, active)
+          cache.revision = source.getRevision()
+          aggregateSource.addFeatures(active.accumulator.add(added))
+          setRenderedGroups(active.accumulator.getGroupCount())
+          added = []
+          return
+        }
+        cache = { revision: source.getRevision(), resolution: bucket, modes: new globalThis.Map() }
+        aggregateCache.current = cache
+        setAggregate(null)
+      }
+      added = []
+      removed = false
+      aggregateSource.clear(true)
+      if (displayMode === 'points') { setRenderedGroups(0); return }
+      let accumulator = cache.modes.get(displayMode)?.size === aggregationSize ? cache.modes.get(displayMode)!.accumulator : undefined
+      if (!accumulator) {
+        accumulator = new MapAggregationAccumulator(displayMode, resolution, { pixelSize: aggregationPixelSize(displayMode, aggregationSize) })
+        accumulator.add(source.getFeatures() as Feature<Point>[])
+        cache.modes.set(displayMode, { size: aggregationSize, accumulator })
+      }
+      aggregateSource.addFeatures(accumulator.getFeatures())
+      setRenderedGroups(accumulator.getGroupCount())
+    }
+    const append = (event: { feature?: Feature }) => {
+      if (event.feature) { added.push(event.feature as Feature<Point>); canonicalCount.current++ }
+    }
+    const remove = () => { removed = true; canonicalCount.current = Math.max(0, canonicalCount.current - 1) }
+    const clear = () => { removed = true; canonicalCount.current = 0 }
+    const change = () => update()
+    update(true)
+    source.on('addfeature', append)
+    source.on('removefeature', remove)
+    source.on('clear', clear)
+    source.on('change', change)
+    return () => {
+      source.un('addfeature', append)
+      source.un('removefeature', remove)
+      source.un('clear', clear)
+      source.un('change', change)
+    }
+  }, [layers, displayMode, aggregationSize, zoom, renderVersion])
+
+  function zoomAggregate(group: Feature<Point | Polygon>) {
+    const view = mapRef.current?.getView()
+    if (!view) return
+    const bounds = [...group.get('bounds')] as [number, number, number, number]
+    const centerX = view.getCenter()?.[0] ?? 0
+    const offset = Math.round((centerX - (bounds[0] + bounds[2]) / 2) / MERCATOR_WORLD_WIDTH) * MERCATOR_WORLD_WIDTH
+    bounds[0] += offset
+    bounds[2] += offset
+    view.fit(bounds, { padding: [65, 75, 65, 75], maxZoom: Math.min(23, (view.getZoom() ?? 2) + 3), duration: 220 })
+    setAggregate(null)
+  }
+
+  useEffect(() => {
     const source = layers.draft.getSource()
     source?.clear()
     if (!preview) return
@@ -394,7 +569,7 @@ export function MapPanel() {
     }
   }, [layers, visibleSelection, renderVersion])
 
-  function changeVisibility(ids: string[], visible: boolean) {
+  const changeVisibility = useCallback((ids: string[], visible: boolean) => {
     if (!sessionId) return
     setVisibility(previous => {
       const next = new Set(previous?.session === sessionId ? previous.hidden : emptyHidden)
@@ -404,7 +579,7 @@ export function MapPanel() {
       }
       return { session: sessionId, hidden: next.size ? next : emptyHidden }
     })
-  }
+  }, [sessionId])
 
   function toggleDraw() {
     workspace.setDrawCircle(!drawCircle)
@@ -439,6 +614,12 @@ export function MapPanel() {
   const mgrs = !menu && formatted ? formatted.info?.mgrs ?? 'Unavailable' : '…'
   const drawDistance = preview && new Intl.NumberFormat(undefined, { maximumFractionDigits: workspace.draft.unit === 'm' ? 1 : 4 })
     .format(preview.radius / units[workspace.draft.unit]) + ' ' + workspace.draft.unit
+  const view = mapRef.current?.getView()
+  const grid = displayMode !== 'points' && view?.getResolution() ? aggregationGridMetrics(displayMode, view.getResolution()!, {
+    size: aggregationSize, latitude: geographicPoint(view.getCenter() ?? initialCenter).latitude,
+  }) : null
+  const groupWidth = grid?.groundCellMeters
+  const groupingScale = groupWidth ? '≈ ' + (groupWidth >= 1000 ? (groupWidth / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' km' : groupWidth < 1 ? (groupWidth * 100).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' cm' : Math.round(groupWidth).toLocaleString() + ' m') + ' across' : undefined
 
   return <section ref={root} className={'map-panel az-map-panel ' + (dark ? 'map-dark' : '')} data-tour="map">
     <div className="map-toolbar"><div><span className="map-toolbar-icon"><Layers size={15}/></span><strong>Search map</strong>
@@ -447,9 +628,11 @@ export function MapPanel() {
       {searchGeometry && searchGeometry.centers.length > 1 && <span className="az-input-summary" title={searchGeometry.centers.length > boundaryCenterLimit ? "Circle outlines are hidden above 64 input locations. All locations and their shared radius still contribute to search results." : undefined}>
         {number.format(searchGeometry.centers.length)} locations{searchGeometry.centers.length > boundaryCenterLimit && ' · outlines hidden'}
       </span>}</div>
-      <label className="basemap-select"><Layers size={14}/><select aria-label="Basemap" value={activeBasemap} onChange={event => setBasemapId(event.target.value)}>
+      <div className="az-map-display-controls"><label className="az-map-display-select">Display <select aria-label="Map display" value={displayMode} onChange={event => setDisplayMode(event.target.value as DisplayMode)}>
+        <option value="points">Points</option><option value="clusters">Clusters</option><option value="hexes">Hex bins</option>
+      </select></label><label className="basemap-select"><Layers size={14}/><select aria-label="Basemap" value={activeBasemap} onChange={event => setBasemapId(event.target.value)}>
         <option value="">Blank map</option>{config?.maps.map(source => <option key={source.id} value={source.id}>{source.name}</option>)}
-      </select></label>
+      </select></label></div>
     </div>
     <div ref={frame} className={'map-viewport' + (pickCenter || drawCircle || preview ? ' picking' : '')} onPointerLeave={() => setPointer(null)}>
       <div ref={target} className="map-canvas" tabIndex={0} aria-label="Interactive search map" onContextMenu={event => {
@@ -475,8 +658,16 @@ export function MapPanel() {
       {pointError && <div className="map-alert points-alert" role="alert">{pointError} <button className="text-button" onClick={retryPoints}>Retry points</button></div>}
       {notice && <div className="az-map-notice" role="status">{notice}<button type="button" className="text-button" onClick={() => setNotice('')}>Dismiss</button></div>}
       {session && visibleSelection && <PointPopup session={session} selection={visibleSelection}/>}
+      {aggregate && session && <MapAggregateInspector key={aggregate.getId()} group={aggregate} mode={displayMode} datasets={matchingDatasets}
+        colorFor={displayMode === 'clusters' ? clusterColorFor : colorFor} close={() => setAggregate(null)} zoom={() => zoomAggregate(aggregate)} choose={row => {
+          setAggregate(null)
+          workspace.setSelection({ ...row, point: row, locate: false })
+        }}/>}
       {session && <MapLegend key={session.id} datasets={matchingDatasets} hidden={hidden} change={changeVisibility}
-        palette={palette} changePalette={changePalette} colorFor={colorFor}/>}
+        palette={displayMode === 'clusters' ? clusterPalette : palette} changePalette={changePalette} colorFor={displayMode === 'clusters' ? clusterColorFor : colorFor}
+        displayMode={displayMode} aggregationSize={aggregationSize} changeAggregationSize={changeAggregationSize}
+        renderedGroups={renderedGroups} loadedPoints={loadedPoints} partial={!!points?.truncated} updating={loading && !points}
+        densityPalette={densityPalette} changeDensityPalette={changeDensityPalette} groupingScale={groupingScale}/>}
       {menu && <MapContextMenu position={menu} formatted={formatted} close={closeMenu} setCenter={setCenter}
         searchHere={submitAt} searchDisabled={!canSearchHere} report={setNotice}/>}
     </div>

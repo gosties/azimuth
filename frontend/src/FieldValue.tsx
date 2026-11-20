@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft, ArrowRight, X } from 'lucide-react'
 import { api, errorText, type FieldChunk, type FieldExtent, type Identity } from './api'
 import { cell, number } from './workspace'
+import { RecordValue } from './RecordValue'
 
 const CHUNK_SIZE = 2048
 
@@ -50,7 +51,8 @@ function FieldViewer({ session, record, index, name, extent, close }: FieldAddre
     </header>
     {error ? <p className="inline-error" role="alert">{error} <button className="text-button" onClick={() => setRetry(value => value + 1)}>Retry</button></p>
       : chunk ? <><p className="quiet">{unit} {number.format(offset + 1)}–{number.format(end)} of {number.format(length)}{chunk.encoding === 'base64' ? ' · Base64' : ''}</p>
-        <pre tabIndex={0} aria-label="Field value chunk">{cell(chunk.value)}</pre></>
+        <pre tabIndex={0} aria-label="Field value chunk">{chunk.encoding === 'text' && chunk.unit === 'characters' && chunk.offset === 0 && chunk.next_offset === null
+          ? <RecordValue value={chunk.value}/> : cell(chunk.value)}</pre></>
       : <p className="quiet" role="status">Loading field value…</p>}
     <footer>
       <button className="button secondary" disabled={!offset} onClick={() => setOffset(Math.max(0, offset - stride.current))}><ArrowLeft size={14}/> Previous chunk</button>
@@ -61,18 +63,15 @@ function FieldViewer({ session, record, index, name, extent, close }: FieldAddre
   </dialog>
 }
 
-export function FieldValue({ value, extent, linkUrls, ...address }: FieldAddress & {
-  value: unknown; extent?: FieldExtent; linkUrls?: boolean
+export function FieldValue({ value, extent, ...address }: FieldAddress & {
+  value: unknown; extent?: FieldExtent
 }) {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
   const body = trigger.current?.ownerDocument.body
   const text = cell(value)
   if (!extent) {
-    if (linkUrls && typeof value === 'string' && /^https?:\/\/[^/\s\\][^\s\\]*$/i.test(value) && URL.canParse(value)) {
-      return <a href={value} target="_blank" rel="noopener noreferrer">{text}</a>
-    }
-    return <>{text}</>
+    return <RecordValue value={value}/>
   }
   const unit = extent.unit === 'bytes' ? 'bytes' : 'characters'
   return <span className="field-value">

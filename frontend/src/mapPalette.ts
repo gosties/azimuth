@@ -42,3 +42,49 @@ export function mapColorResolver(palette: MapPalette, slots: ReadonlyMap<string,
   const { colors } = mapPalettes[palette]
   return (id: string) => colors[(slots.get(id) ?? 0) % colors.length]
 }
+
+/** Fixed loaded-point count bands shared by the map and its legend. */
+export const densityCountBands = [
+  { min: 1, label: '1' }, { min: 2, label: '2–4' }, { min: 5, label: '5–15' },
+  { min: 16, label: '16–63' }, { min: 64, label: '64+' },
+] as const
+
+export const densityPalettes = {
+  sunset: { label: 'Sunset', colors: ['#ffe94a', '#ffad18', '#ff622c', '#eb268d', '#9b075c'] },
+  tropical: { label: 'Tropical', colors: ['#63ffe5', '#22cfed', '#1099ec', '#1365dc', '#16368f'] },
+  electric: { label: 'Electric', colors: ['#e3c6ff', '#c28aff', '#a44af4', '#7c20c3', '#4c0879'] },
+  lime: { label: 'Lime', colors: ['#d4ff35', '#9ce72b', '#45bf54', '#0c937b', '#00685e'] },
+  gray: { label: 'Gray', colors: ['#efeeeb', '#cfcdc8', '#a4a19a', '#746f66', '#474239'] },
+} as const
+export type DensityPalette = keyof typeof densityPalettes
+export const densityPaletteIds = Object.keys(densityPalettes) as DensityPalette[]
+
+export function readDensityPalette(value: string | null): DensityPalette {
+  if (value === 'plum') return 'electric'
+  if (value === 'amber' || value === 'copper') return 'sunset'
+  return densityPaletteIds.find(palette => palette === value) ?? 'sunset'
+}
+
+export function densityBandIndex(count: number): number {
+  let index = 0
+  while (index + 1 < densityCountBands.length && count >= densityCountBands[index + 1].min) index++
+  return index
+}
+
+export function densityColor(count: number, palette: DensityPalette = 'sunset'): string {
+  return densityPalettes[palette].colors[densityBandIndex(count)]
+}
+
+/** Shared translucent hex fill; outlines and count labels remain opaque. */
+export function densityFillColor(color: string): string {
+  return `${color}9e`
+}
+
+export function densityFill(count: number, palette: DensityPalette = 'sunset'): string {
+  return densityFillColor(densityColor(count, palette))
+}
+
+export const clusterCountExamples = [1, 10, 100, 1000] as const
+export function clusterRadius(count: number): number {
+  return Math.min(24, 12 + Math.log2(Math.max(1, count)))
+}
