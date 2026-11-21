@@ -60,6 +60,7 @@ class Settings:
     auth_session_ttl_sec: int = 8 * 60 * 60
     auth_cookie_secure: bool = True
     auth_origins: list[str] = field(default_factory=list)
+    wfs_client_origins: list[str] = field(default_factory=list)
     max_map_points: int = 250_000
     map_known_count_min_rows: int = 1_000_000
     wide_value_preview_chars: int = 2048
@@ -236,10 +237,14 @@ class Settings:
             raise ValueError("auth_session_ttl_sec must be positive")
         if not isinstance(self.auth_origins, list):
             raise ValueError("auth_origins must be a list of HTTP(S) origins")
-        for origin in self.auth_origins:
+        if not isinstance(self.wfs_client_origins, list):
+            raise ValueError("wfs_client_origins must be a list of HTTPS origins")
+        for origin in [*self.auth_origins, *self.wfs_client_origins]:
             if not isinstance(origin, str) or any(character.isspace() for character in origin):
                 raise ValueError("Invalid authentication origin")
             parts = urlsplit(origin)
+            if origin in self.wfs_client_origins and (parts.scheme != "https" or "*" in origin):
+                raise ValueError("GIS clients require an exact HTTPS origin")
             if (parts.scheme not in {"http", "https"} or not parts.hostname or parts.username is not None
                     or origin != f"{parts.scheme}://{parts.netloc}"):
                 raise ValueError("Invalid authentication origin")

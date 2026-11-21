@@ -58,6 +58,8 @@ SCHEMA = (
     "CREATE TABLE IF NOT EXISTS retired_tables (name TEXT PRIMARY KEY, retired_at TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, payload TEXT NOT NULL, expires_at TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at)",
+    "CREATE TABLE IF NOT EXISTS wfs_paging (id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE, owner TEXT NOT NULL, digest TEXT NOT NULL, UNIQUE(owner,digest))",
+    "CREATE INDEX IF NOT EXISTS wfs_paging_owner ON wfs_paging(owner)",
     "CREATE TABLE IF NOT EXISTS deletion_audit (id TEXT PRIMARY KEY, table_id TEXT NOT NULL, deleted_at TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS export_spools (id TEXT PRIMARY KEY, registered_at TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS export_dataset_purges (table_id TEXT NOT NULL, spool_id TEXT NOT NULL REFERENCES export_spools(id), acknowledged_at TEXT, PRIMARY KEY(table_id,spool_id))",
@@ -65,6 +67,7 @@ SCHEMA = (
     "CREATE TABLE IF NOT EXISTS login_sessions (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, csrf_token TEXT NOT NULL, expires_at TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS login_sessions_account ON login_sessions(account_id)",
     "CREATE INDEX IF NOT EXISTS login_sessions_expiry ON login_sessions(expires_at)",
+    "CREATE TABLE IF NOT EXISTS gis_credentials (account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE, username TEXT NOT NULL UNIQUE, secret_hash TEXT NOT NULL, created_at TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS account_mutex (singleton INTEGER PRIMARY KEY)",
     "CREATE TABLE IF NOT EXISTS login_attempts (scope TEXT NOT NULL, subject_hash TEXT NOT NULL, window_start BIGINT NOT NULL, attempts INTEGER NOT NULL, PRIMARY KEY(scope,subject_hash))",
     "CREATE INDEX IF NOT EXISTS login_attempts_window ON login_attempts(window_start)",
@@ -419,6 +422,36 @@ class Registry:
         with self.connect() as conn:
             row = conn.execute("SELECT payload FROM sessions WHERE id=?", (session_id,)).fetchone()
         return json.loads(row["payload"]) if row else None
+
+    def find_wfs_session(self, owner: str, digest: str) -> dict | None:
+        """Resolve tokenless WFS pages to the same principal's frozen query."""
+        with self.connect() as conn:
+            row = conn.execute("SELECT s.payload FROM wfs_paging w JOIN sessions s ON s.id=w.id WHERE w.owner=? AND w.digest=? AND s.expires_at>?",
+                               (owner, digest, utc_now())).fetchone()
+        return json.loads(row["payload"]) if row else None
+
+    def save_wfs_session(self, session: dict, *, maximum: int, per_owner: int) -> dict:
+        """Admit bounded WFS paging state atomically with its snapshot holder."""
+        from fastapi import HTTPException
+
+        with self.connect() as conn:
+            if self.postgres:
+                conn.execute("SELECT pg_advisory_xact_lock(83172507)")
+            else:
+                conn.execute("BEGIN IMMEDIATE")
+            conn.execute("DELETE FROM sessions WHERE id IN (SELECT w.id FROM wfs_paging w JOIN sessions s ON s.id=w.id WHERE s.expires_at<=?)", (utc_now(),))
+            existing = conn.execute("SELECT s.payload FROM wfs_paging w JOIN sessions s ON s.id=w.id WHERE w.owner=? AND w.digest=?",
+                                    (session["owner_user_id"], session["digest"])).fetchone()
+            if existing:
+                return json.loads(existing["payload"])
+            count = conn.execute("SELECT count(*) AS n FROM wfs_paging").fetchone()["n"]
+            owned = conn.execute("SELECT count(*) AS n FROM wfs_paging WHERE owner=?", (session["owner_user_id"],)).fetchone()["n"]
+            if count >= maximum or owned >= per_owner:
+                raise HTTPException(429, "WFS paging capacity exhausted; finish existing queries or wait for expiry")
+            conn.execute("INSERT INTO sessions (id,payload,expires_at) VALUES (?,?,?)",
+                         (session["id"], json.dumps(session), session["expires_at"]))
+            conn.execute("INSERT INTO wfs_paging (id,owner,digest) VALUES (?,?,?)", (session["id"], session["owner_user_id"], session["digest"]))
+        return session
 
     def delete_session(self, session_id: str) -> None:
         """Invalidate one session; running requests retain their read lease."""

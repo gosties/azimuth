@@ -12,6 +12,8 @@ export const displayModes = {
 export type DisplayMode = keyof typeof displayModes
 export type PointSelection = { point: Center; table_id: string; object_id: string; preview?: WideRow; previewColumns?: Column[]; locate: boolean; origin?: 'map' | 'results' }
 export type Workspace = {
+  viewMode?: 'workspace' | 'v2'
+  redockPanel?: (id: string) => boolean
   auth: AuthSession
   user: AuthSession['user']
   config: Config | null

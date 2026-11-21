@@ -1,9 +1,10 @@
+import { GeoSearchBrand } from './GeoSearchBrand'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowRight, LockKeyhole, Moon, Sun } from 'lucide-react'
 import { api, ApiError, errorText, onUnauthorized, setApiSession, type AuthSession } from './api'
 import { App } from './App'
 import { ExportsPage } from './ExportsPage'
-import { AzimuthLoadingMark, AzimuthMark, AzimuthWordmark } from './AzimuthMark'
+import { AzimuthLoadingMark } from './AzimuthMark'
 import { readStorage, themeKey, writeStorage } from './workspace'
 
 export function AuthGate() {
@@ -83,8 +84,8 @@ export function AuthGate() {
 
   return <main className="auth-screen">
     <div className="auth-tools"><button className="icon-button" aria-label={dark ? 'Use light theme' : 'Use dark theme'} onClick={() => setDark(!dark)}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button></div>
-    <section className="auth-card" aria-label="Azimuth sign in">
-      <h1 className="auth-brand" aria-label="Azimuth"><AzimuthMark size={47}/><AzimuthWordmark/></h1>
+    <section className="auth-card" aria-label="H³ GeoSearch sign in">
+      <h1 className="auth-brand" aria-label="H³ GeoSearch · Azimuth Platform"><GeoSearchBrand/></h1>
       {loading || busy === 'logout' ? <p className="auth-status" role="status"><AzimuthLoadingMark/>{loading ? 'Checking session…' : 'Signing out…'}</p> :
         <form onSubmit={async event => {
           event.preventDefault()

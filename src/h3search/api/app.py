@@ -20,6 +20,7 @@ import anyio
 from fastapi import APIRouter, FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from starlette.middleware.cors import CORSMiddleware
 
 from h3search.config import Settings
 from h3search.control import ConflictError, Registry
@@ -38,10 +39,27 @@ from .maps import configured_maps, public_maps
 from .saved_searches import register_saved_searches
 from .search import Search
 from .storage import Storage
+from .wfs_data import WFSData
+from .wfs_protocol import register_wfs
 from .csv_locations import locations as csv_locations, read_csv
 from .temporal import temporal_kind
 
 LOG = logging.getLogger(__name__)
+
+
+class WfsClientOrigins:
+    """Give configured web GIS clients CORS access on the WFS endpoint only."""
+
+    def __init__(self, app, origins):
+        self.app = app
+        self.wfs = CORSMiddleware(app, allow_origins=origins, allow_credentials=True,
+                                  allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
+
+    async def __call__(self, scope, receive, send):
+        handler = self.wfs if scope["type"] == "http" and scope["path"] == "/api/wfs" else self.app
+        await handler(scope, receive, send)
+
+
 Limit = Annotated[int, Query(ge=1, le=100)]
 Cursor = Annotated[str | None, Query(max_length=768)]
 Latitude = Annotated[float, Query(ge=-90, le=90, allow_inf_nan=False)]
@@ -82,7 +100,7 @@ def _public_maps(settings):
 
 def _owned_session(registry, session_id, user_id):
     session = registry.get_session(session_id)
-    if session is None or session.get("owner_user_id") != user_id:
+    if session is None or session.get("kind") == "wfs" or session.get("owner_user_id") != user_id:
         raise HTTPException(404, "Search session not found")
     return session
 
@@ -242,8 +260,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app):
         storage = Storage(settings)
         workers = Workers(settings.pool_size, settings.pool_wait_sec, settings.query_timeout_sec)
+        wfs_workers = Workers(settings.pool_size, settings.pool_wait_sec, settings.query_timeout_sec)
+        wfs_storage = Storage(settings, source="h3search-wfs")
         app.state.workers = workers
+        app.state.wfs_workers = wfs_workers
         app.state.search = Search(storage)
+        app.state.wfs_data = WFSData(wfs_storage, registry, settings)
         exports = None
         cleanup_task = None
         async def cleanup_sessions():
@@ -267,6 +289,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if exports is not None:
                     await asyncio.to_thread(exports.close)
                 await asyncio.to_thread(workers.close)
+                await asyncio.to_thread(wfs_workers.close)
+                await asyncio.to_thread(wfs_storage.close)
                 await asyncio.to_thread(storage.close)
 
     app = FastAPI(title="Azimuth", lifespan=lifespan, openapi_url=None)
@@ -340,8 +364,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def invalid_coordinate(request, error):
         return JSONResponse(status_code=422, content={"detail": str(error)})
 
-    async def run(request, fn, *, session_id=None, lease=False, monitor=True):
-        workers = request.app.state.workers
+    async def run(request, fn, *, session_id=None, lease=False, monitor=True, worker_pool=None):
+        workers = worker_pool or request.app.state.workers
 
         def operation(job):
             if lease:
@@ -816,5 +840,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     register_exports(router, read_session)
     register_saved_searches(router, registry, run)
+    async def run_wfs(request, operation, *, lease=False):
+        return await run(request, operation, lease=lease, worker_pool=request.app.state.wfs_workers)
+
+    register_wfs(router, run_wfs, auth.gis.settings, settings.auth_origins)
     app.include_router(router)
+    if settings.wfs_client_origins:
+        app.add_middleware(WfsClientOrigins, origins=settings.wfs_client_origins)
     return app

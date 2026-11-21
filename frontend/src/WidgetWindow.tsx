@@ -95,7 +95,7 @@ export function WidgetWindow({ ownerDocument, onDocumentChange, title, className
     ownerDocument.addEventListener('keydown', keydown, true)
     return () => { ownerDocument.removeEventListener('keydown', keydown, true); ownerDocument.defaultView?.removeEventListener('resize', resize) }
   }, [ownerDocument, floating, host])
-  useEffect(() => { if (popup && !popup.closed) popup.document.title = title + ' · Azimuth' }, [popup, title])
+  useEffect(() => { if (popup && !popup.closed) popup.document.title = title + ' · H³ GeoSearch · Azimuth Platform' }, [popup, title])
   useEffect(() => {
     if (!popup) return
     const source = document
@@ -153,7 +153,7 @@ export function WidgetWindow({ ownerDocument, onDocumentChange, title, className
       const finish = () => {
         if (next.closed || popupRef.current !== next) return
         try {
-          next.document.title = title + ' · Azimuth'
+          next.document.title = title + ' · H³ GeoSearch · Azimuth Platform'
           next.document.documentElement.lang = 'en'
           for (const name of ['theme', 'display']) {
             const value = ownerDocument.documentElement.getAttribute('data-' + name) ?? document.documentElement.getAttribute('data-' + name)

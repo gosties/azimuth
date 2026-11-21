@@ -20,7 +20,7 @@ export const helpTopics: HelpTopic[] = [
         id: 'first-search',
         title: 'Run your first search',
         steps: [
-          'In Search, enter a coordinate or use Pick center to select a location on the map.',
+          'In Search, enter a coordinate or use Pick center to select a location on the map. In Classic View, open Advanced options to find Pick center.',
           'Set a radius, such as 500 meters. Search all published datasets or choose the ones you need.',
           'Choose Run search. Expand a dataset in Results or select a point on the map to inspect a match.',
         ],
@@ -38,6 +38,32 @@ export const helpTopics: HelpTopic[] = [
         title: 'Guided tour controls',
         paragraphs: [
           'Use Start guided tour to explore the workspace. Press Enter or Right Arrow to advance, Left Arrow to go back, or Escape to close.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'gis-connections',
+    title: 'Connect a GIS application',
+    summary: 'Explore published primary catalog points in a desktop GIS.',
+    sections: [
+      {
+        id: 'qgis',
+        title: 'Connect QGIS',
+        steps: [
+          'Open My account in Azimuth. Create a GIS credential and copy the service URL.',
+          'In QGIS, open Data Source Manager and choose WFS / OGC API - Features. Choose New, enter Azimuth as the connection name and paste the service URL.',
+          'Choose Basic authentication and supply your GIS username and password. Save credentials in your QGIS authentication configuration.',
+          'Start with a map zoomed to a neighborhood. Connect, select a layer, enable Only request features overlapping the view extent, and choose Add.',
+          'Use Identify Features to see a point’s attributes. If a request exceeds the area or feature limit, zoom in and refresh the layer.',
+        ],
+      },
+      {
+        id: 'arcgis',
+        title: 'Connect ArcGIS Pro',
+        paragraphs: [
+          'Create a New WFS Server connection with the service URL and GIS credentials. Set the layer connection mode to On demand and limit its spatial extent before requesting features.',
+          'Rotating or revoking your credential in My account affects every GIS connection using it. Update saved connections after rotation.',
         ],
       },
     ],
@@ -180,7 +206,7 @@ export const helpTopics: HelpTopic[] = [
         id: 'date-filter',
         title: 'Search and refine by time',
         steps: [
-          'In Search, expand Advanced search and enable temporal search before running a single-point or bulk search. Choose Last 24 hours, Last 48 hours, Last 7 days, Last 30 days, custom last-N hours or days, or a custom UTC start/end range.',
+          'In Search, expand Advanced search and enable temporal search before running a single-point or bulk search. In Classic View, first open Advanced options. Choose Last 24 hours, Last 48 hours, Last 7 days, Last 30 days, custom last-N hours or days, or a custom UTC start/end range.',
           'Relative ranges freeze when Run search is clicked. Last 30 days means a rolling 30-day interval. Initial counts, map points, records and exports use these same bounds.',
           'To refine completed results, expand Date filter in Results.',
           'Enter a start date, an end date, or both, then choose Apply date filter.',
@@ -235,7 +261,7 @@ export const helpTopics: HelpTopic[] = [
         id: 'save',
         title: 'Save a search',
         paragraphs: [
-          'After a search completes, expand Save search in Search and give it a name. Use Browse saved locations to review existing names. You can also open Saved in Search or Saved searches from Workspace and choose Save current.',
+          'After a search completes, expand Save search in Search and give it a name. In Classic View, find Save search under Advanced options. Use Browse saved locations to review existing names. You can also open Saved in Search or Saved searches from Panels and choose Save current.',
           'A saved search keeps the settings for the completed search, including any applied date filter. Running it again uses the currently published data, so matches can change when datasets are updated.',
         ],
       },
@@ -273,6 +299,14 @@ export const helpTopics: HelpTopic[] = [
     summary: 'Arrange panels and choose a display density that fits your work.',
     sections: [
       {
+        id: 'application-view',
+        title: 'Choose an application view',
+        paragraphs: [
+          'Use Application view to switch between Azimuth View and Classic View. Classic View places the search form above the results. Choose List, Map, or Both to arrange the results below it.',
+          'In Classic View, open Advanced options in Search for lookup settings, coordinate formats, map selection, time search, and saving a search. Use Catalog & local data or Saved searches in the toolbar to open those panels. After a search, use Export records to prepare an export or My exports to review downloads.',
+        ],
+      },
+      {
         id: 'dock',
         title: 'Move, resize, or float a panel',
         paragraphs: [
@@ -297,7 +331,7 @@ export const helpTopics: HelpTopic[] = [
         id: 'display',
         title: 'Choose display density',
         paragraphs: [
-          'In Workspace, choose Comfortable or Compact. Your layout and display mode save for your account in this browser.',
+          'In Panels, choose Comfortable or Compact. Your layout and display mode save for your account in this browser.',
         ],
       },
       {

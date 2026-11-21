@@ -10,7 +10,7 @@ export const tourSteps = [
   { target: 'map', panel: 'map', title: 'Explore matches on the map', body: 'Pan and zoom to load points in view. Select a point to see its record, or right-click the map for coordinate and search actions.' },
   { target: 'results', panel: 'results', title: 'Open matching records', body: 'Expand a dataset to load up to 100 records. Use Columns to choose fields. Advanced search can apply a UTC time range before results load. Date filter can refine an existing search. Export shared records in the offered formats; results containing local data download as JSON.' },
   { target: 'catalog', panel: 'datasets', title: 'Browse or add local data', body: 'Choose Add local data to build a point repository. Open a folder, select a source, and use Inspect selected to choose its fields. Stage the layers you want, build the catalog, and save a bundle to keep a backup.' },
-  { target: 'layout', panel: null, title: 'Arrange your workspace', body: 'Drag tabs to move panels and dividers to resize them. Use Workspace to choose a display mode. Your layout and display mode save for your account in this browser.' },
+  { target: 'layout', panel: null, title: 'Arrange your workspace', body: 'Drag tabs to move panels and dividers to resize them. Use Panels to open panels or choose a display mode. Your layout and display mode save for your account in this browser.' },
 ] as const
 
 function searchWords(value: string) {

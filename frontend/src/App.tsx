@@ -1,5 +1,10 @@
+import { GeoSearchBrand } from './GeoSearchBrand'
+import { V2Toolbar } from './V2Toolbar'
+import { useTransientMessage } from './useTransientMessage'
+import { readLayout, restoreView, v2Layout, type ResultView, type ViewMode } from './viewLayout'
 import { resolveTemporal } from './temporal'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type IDockviewHeaderActionsProps, type IDockviewPanelHeaderProps } from 'dockview-react'
 import { ArrowLeft, ArrowRight, Bookmark, BookOpen, ChevronDown, CircleHelp, Crosshair, Database, ExternalLink, LayoutGrid, LogOut, Map, Maximize2, Minimize2, Moon, PanelTop, RotateCcw, Rows3, Shield, SquareStack, Sun, UserRound, X } from 'lucide-react'
 import { api, ApiError, errorText, type AuthSession, type Center, type Config, type Dataset, type SavedSearchSettings, type SearchQuery, type Session, type TimeFilter } from './api'
@@ -8,7 +13,6 @@ import { MyAccountPanel } from './MyAccountPanel'
 import { Announcements, FeedbackPanel, selectFeedbackThread } from './Community'
 import { MessageSquare } from 'lucide-react'
 import { NotificationsBell } from './NotificationsBell'
-import { AzimuthMark, AzimuthWordmark } from './AzimuthMark'
 import { DatasetsPanel } from './DatasetsPanel'
 import { HelpPanel, tourSteps } from './HelpPanel'
 import { MapPanel } from './MapPanel'
@@ -63,6 +67,21 @@ function defaultLayout(dock: DockviewApi) {
   dock.getPanel('search')?.api.setActive()
 }
 
+function workspaceLayout(dock: DockviewApi): ReturnType<DockviewApi['toJSON']> {
+  const target = v2Layout(dock, 'both')
+  if (dock.width < 690) {
+    target.grid.root.data = [{ type: 'leaf', data: { id: 'workspace-main', views: ['search', 'datasets', 'map', 'results', 'help'], activeView: 'search' } }]
+  } else {
+    target.grid.orientation = 'HORIZONTAL' as typeof target.grid.orientation
+    target.grid.root.data = [
+      { type: 'branch', size: 326, data: [{ type: 'leaf', size: 460, data: { id: 'workspace-search', views: ['search', 'help'], activeView: 'search' } }, { type: 'leaf', size: 250, data: { id: 'workspace-data', views: ['datasets'], activeView: 'datasets' } }] },
+      { type: 'branch', size: Math.max(350, dock.width - 326), data: [{ type: 'leaf', size: 460, data: { id: 'workspace-map', views: ['map'], activeView: 'map' } }, { type: 'leaf', size: 250, data: { id: 'workspace-results', views: ['results'], activeView: 'results' } }] },
+    ]
+  }
+  for (const id of ['datasets', 'help'] as const) target.panels[id] = { id, contentComponent: id, title: panels[id].title }
+  return target
+}
+
 function PanelTab({ api: panel }: IDockviewPanelHeaderProps) {
   const Icon = panels[panel.id as PanelId]?.icon ?? PanelTop
   return <div className="panel-tab">
@@ -74,6 +93,7 @@ function PanelTab({ api: panel }: IDockviewPanelHeaderProps) {
 }
 
 export function HeaderActions({ activePanel, containerApi, location }: IDockviewHeaderActionsProps) {
+  const workspace = useContext(WorkspaceContext)
   const [error, setError] = useState(false)
   const [maximized, setMaximized] = useState(() => activePanel?.api.isMaximized() ?? false)
   useEffect(() => {
@@ -99,6 +119,7 @@ export function HeaderActions({ activePanel, containerApi, location }: IDockview
       catch { setError(true) }
     }}><ExternalLink size={14}/></button>}
     {floating && <button className="icon-button" aria-label={'Dock ' + title + ' panel'} title="Dock panel" onClick={() => {
+      if (workspace?.redockPanel?.(activePanel.id)) return
       const nearby = title === 'Map' ? 'results' : title === 'Results' ? 'map' : 'search'
       const related = containerApi.getPanel(nearby)?.group
       const group = related?.api.location.type === 'grid' ? related : containerApi.groups.find(candidate => candidate.api.location.type === 'grid')
@@ -168,6 +189,19 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
   const { user } = auth
   useEffect(() => { void scavengeBrowserResultExports(user.id).catch(() => {}) }, [user.id])
   const layoutKey = LAYOUT + '.' + user.id + (window.innerWidth < 690 ? '.narrow' : '.wide')
+  const viewKey = 'azimuth.view.' + user.id
+  const [viewMode, setViewMode] = useState<ViewMode>(() => readStorage(viewKey) === 'v2' ? 'v2' : 'workspace')
+  const viewRef = useRef(viewMode)
+  const [resultView, setResultView] = useState<ResultView>(() => {
+    const value = readStorage('azimuth.v2.results.' + user.id)
+    return value === 'list' || value === 'map' ? value : 'both'
+  })
+  const resultViewRef = useRef(resultView)
+  const restoringLayout = useRef(false)
+  const dockShell = useRef<HTMLDivElement>(null)
+  const [layoutError, setLayoutError, layoutErrorProps] = useTransientMessage('')
+  const snapshots = useRef<Partial<Record<ViewMode, ReturnType<DockviewApi['toJSON']>>>>({})
+  const viewLayoutKey = useCallback((mode: ViewMode) => mode === 'workspace' ? layoutKey : layoutKey.replace('azimuth.workspace.v1', 'azimuth.v2.v1'), [layoutKey])
   const displayKey = 'azimuth.display.' + user.id
   const [displayMode, setDisplayMode] = useState<DisplayMode>(() => readStorage(displayKey) === 'compact' ? 'compact' : 'comfortable')
   const [config, setConfig] = useState<Config | null>(null)
@@ -248,6 +282,7 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
   }, [catalogRevision])
 
   useEffect(() => () => {
+    dockRef.current = null
     pending.current?.abort()
     for (const subscription of subscriptions.current) subscription.dispose()
     for (const child of popoutWindows.current) if (!child.closed) {
@@ -270,16 +305,83 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
     return () => document.removeEventListener('keydown', restore)
   }, [step])
 
+  const changeResultView = useCallback((next: ResultView) => {
+    const dock = dockRef.current
+    if (!dock || viewRef.current !== 'v2') return
+    const previous = dock.toJSON()
+    restoringLayout.current = true
+    try {
+      restoreView(dock, v2Layout(dock, next))
+      setLayoutError('')
+    } catch {
+      try { restoreView(dock, previous) } catch { /* Keep surviving panels reachable through the panel menu. */ }
+      setLayoutError('Unable to change the result view. Your previous view has been retained where possible.')
+      return
+    } finally { restoringLayout.current = false }
+    resultViewRef.current = next
+    setResultView(next)
+    writeStorage('azimuth.v2.results.' + user.id, next)
+    snapshots.current.v2 = dock.toJSON()
+    writeStorage(viewLayoutKey('v2'), JSON.stringify(dock.toJSON()))
+  }, [user.id, viewLayoutKey, setLayoutError])
+
+  const returnV2Panels = useCallback((ids: string[]) => {
+    const dock = dockRef.current
+    if (!dock || viewRef.current !== 'v2') return false
+    const primary = ids.filter(id => id === 'search' || id === 'map' || id === 'results')
+    if (!primary.length) return false
+    for (const id of primary) {
+      const panel = dock.getPanel(id)
+      if (panel?.api.location.type === 'floating') {
+        const group = dock.groups.find(candidate => candidate.api.location.type === 'grid') ?? dock.addGroup()
+        panel.api.moveTo({ group, position: 'center' })
+      }
+    }
+    changeResultView(resultViewRef.current)
+    return true
+  }, [changeResultView])
+
+  const changeView = useCallback((next: ViewMode) => {
+    const dock = dockRef.current
+    if (!dock || next === viewRef.current) return
+    const previous = viewRef.current
+    snapshots.current[previous] = dock.toJSON()
+    writeStorage(viewLayoutKey(previous), JSON.stringify(dock.toJSON()))
+    restoringLayout.current = true
+    try {
+      const target = snapshots.current[next] ?? readLayout(readStorage(viewLayoutKey(next)), Object.keys(panels))
+      flushSync(() => setViewMode(next))
+      const bounds = dockShell.current?.getBoundingClientRect()
+      if (bounds?.width && bounds.height) dock.layout(bounds.width, bounds.height)
+      if (target) restoreView(dock, target)
+      else restoreView(dock, next === 'v2' ? v2Layout(dock, resultViewRef.current) : workspaceLayout(dock))
+      viewRef.current = next
+      setViewMode(next)
+      writeStorage(viewKey, next)
+      setLayoutError('')
+    } catch {
+      flushSync(() => setViewMode(previous))
+      const bounds = dockShell.current?.getBoundingClientRect()
+      if (bounds?.width && bounds.height) dock.layout(bounds.width, bounds.height)
+      try { restoreView(dock, snapshots.current[previous]!) } catch { /* Keep surviving panels reachable through the panel menu. */ }
+      setLayoutError('Unable to change the application view. Your previous view has been retained where possible.')
+    } finally { restoringLayout.current = false }
+  }, [viewKey, viewLayoutKey, setLayoutError])
+
   const openPanel = useCallback((id: PanelId, focusPopout = true) => {
     const dock = dockRef.current
     if (!dock || id === 'accounts' && user.role !== 'superadmin' || id === 'catalogAdmin' && user.role === 'user') return
+    if (viewRef.current === 'v2' && (id === 'map' || id === 'results')) {
+      const desired = id === 'map' ? 'map' : 'list'
+      if (resultViewRef.current !== 'both' && resultViewRef.current !== desired) changeResultView(desired)
+    }
     const existing = dock.getPanel(id)
     if (dock.hasMaximizedGroup() && !existing?.api.isMaximized()) dock.exitMaximizedGroup()
-    const search = id === 'savedSearches' ? dock.getPanel('search') : undefined
+    const search = viewRef.current === 'v2' ? dock.getPanel(resultViewRef.current === 'map' ? 'map' : 'results') : id === 'savedSearches' ? dock.getPanel('search') : undefined
     const panel = existing ?? addPanel(dock, id, search?.api.location.type === 'grid' ? { position: { referencePanel: search } } : {})
     panel.api.setActive()
     if (focusPopout) dock.getPopouts().find(item => item.group === panel.group)?.window.focus()
-  }, [user.role])
+  }, [user.role, changeResultView])
 
   const onReady = useCallback(({ api: dock }: DockviewReadyEvent) => {
     dockRef.current = dock
@@ -291,21 +393,34 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
         popout.window.document.documentElement.dataset.display = document.documentElement.dataset.display
       }),
       dock.onWillClosePopoutWindow(event => {
+        const returning = dock.panels.filter(panel => panel.api.location.type === 'popout' && panel.group.element.ownerDocument.defaultView === event.window).map(panel => panel.id)
         event.window.removeEventListener('focus', forwardPopoutFocus)
         popoutWindows.current.delete(event.window)
+        queueMicrotask(() => {
+          if (dockRef.current === dock && !restoringLayout.current) returnV2Panels(returning)
+        })
       }),
     ]
-    const saved = readStorage(layoutKey)
+    const saved = readLayout(readStorage(viewLayoutKey(viewRef.current)), Object.keys(panels))
     if (saved) {
-      try { dock.fromJSON(JSON.parse(saved)) }
-      catch { defaultLayout(dock) }
-    } else defaultLayout(dock)
-    subscriptions.current.push(dock.onDidLayoutChange(() => writeStorage(layoutKey, JSON.stringify(dock.toJSON()))))
+      try { dock.fromJSON(saved) }
+      catch {
+        if (viewRef.current === 'v2') dock.fromJSON(v2Layout(dock, resultViewRef.current))
+        else defaultLayout(dock)
+      }
+    } else if (viewRef.current === 'v2') dock.fromJSON(v2Layout(dock, resultViewRef.current))
+    else defaultLayout(dock)
+    subscriptions.current.push(dock.onDidLayoutChange(() => {
+      if (restoringLayout.current) return
+      const mode = viewRef.current
+      snapshots.current[mode] = dock.toJSON()
+      writeStorage(viewLayoutKey(mode), JSON.stringify(dock.toJSON()))
+    }))
     if (user.role !== 'user' && isInfrastructureLink(window.location.search)) {
       openPanel('catalogAdmin', false)
       dock.getPanel('catalogAdmin')?.api.maximize()
     }
-  }, [layoutKey, forwardPopoutFocus, openPanel, user.role])
+  }, [viewLayoutKey, forwardPopoutFocus, openPanel, user.role, returnV2Panels])
 
   const setTourStep = useCallback((next: number) => {
     if (next >= 0) {
@@ -333,8 +448,13 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
   function resetLayout() {
     const dock = dockRef.current
     if (dock) {
-      defaultLayout(dock)
-      writeStorage(layoutKey, JSON.stringify(dock.toJSON()))
+      restoringLayout.current = true
+      try {
+        if (viewRef.current === 'v2') restoreView(dock, v2Layout(dock, resultViewRef.current))
+        else defaultLayout(dock)
+      } finally { restoringLayout.current = false }
+      snapshots.current[viewRef.current] = dock.toJSON()
+      writeStorage(viewLayoutKey(viewRef.current), JSON.stringify(dock.toJSON()))
     }
     setLayoutOpen(false)
   }
@@ -506,7 +626,7 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
   }, [config, catalogLoading, catalogError, initialLink, consumeAutoload, submitSearch])
 
   return <WorkspaceContext.Provider value={{
-    auth, user, dark, displayMode, config, datasets, categories, categoriesError, catalogLoading, catalogError, localCatalogError, searchSources,
+    auth, user, dark, displayMode, viewMode, redockPanel: id => returnV2Panels([id]), config, datasets, categories, categoriesError, catalogLoading, catalogError, localCatalogError, searchSources,
     reload: () => setCatalogRevision(value => value + 1),
     upsertDataset: dataset => setDatasets(items => items.some(item => item.id === dataset.id) ? items.map(item => item.id === dataset.id ? dataset : item) : [...items, dataset]),
     draft, updateDraft,
@@ -526,17 +646,18 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
     setSelection: value => { setSelection(value); if (value?.locate) openPanel('map') },
     resetLayout, tour: () => setTourStep(0),
   }}>
-    <main className="app">
+    <main className="app" data-view={viewMode}>
       <header className="app-header">
-        <h1><button type="button" className="app-identity" aria-label="Azimuth workspace" title="Return to the search workspace" onClick={returnToWorkspace}>
-          <AzimuthMark/><AzimuthWordmark/><span className="azimuth-subtitle">Powered by H³ GeoSearch</span>
+        <h1><button type="button" className="app-identity" aria-label="H³ GeoSearch · Azimuth Platform workspace" title="Return to the search workspace" onClick={returnToWorkspace}>
+          <GeoSearchBrand/>
         </button></h1>
         <div className="app-actions">
           <span className={'service-status' + (catalogError ? ' offline' : '')} role="status" title="Published searchable points">
             <i/>{catalogError ? 'Service unavailable' : searchableTotal === null ? 'Loading catalog' : <><strong>{number.format(searchableTotal)}</strong><span> searchable points</span></>}
           </span>
+          <select className="application-view" aria-label="Application view" value={viewMode} onChange={event => changeView(event.target.value as ViewMode)}><option value="workspace">Azimuth View</option><option value="v2">Classic View</option></select>
           <div className="layout-menu" ref={layoutMenu}>
-            <button className="header-button workspace-toggle" data-tour="layout" aria-label="Workspace" aria-expanded={layoutOpen} onClick={() => setLayoutOpen(!layoutOpen)}><LayoutGrid size={16}/><span>Workspace</span><ChevronDown size={13}/></button>
+            <button className="header-button workspace-toggle" data-tour="layout" aria-label="Panels" title="Panels and display settings" aria-expanded={layoutOpen} onClick={() => setLayoutOpen(!layoutOpen)}><LayoutGrid size={16}/><span>Panels</span><ChevronDown size={13}/></button>
             {layoutOpen && <div className="workspace-menu">
               <p>SHOW PANEL</p>
               {(Object.keys(panels) as PanelId[]).filter(id => id !== 'accounts' && id !== 'catalogAdmin' && id !== 'myAccount').map(id => { const Icon = panels[id].icon; return <button key={id} onClick={() => { openPanel(id); setLayoutOpen(false) }}><Icon size={15}/>{panels[id].title}</button> })}
@@ -569,7 +690,9 @@ export function App({ auth, dark, toggleTheme, consumeAutoload, logout, accountE
         </div>
       </header>
       {accountError && <p className="inline-error account-error" role="alert">{accountError}</p>}
-      <div className="dock-shell">
+      {layoutError && <p className="inline-error account-error" role="alert" {...layoutErrorProps}>{layoutError}</p>}
+      <V2Toolbar resultView={resultView} setResultView={changeResultView} openPanel={openPanel}/>
+      <div className="dock-shell" ref={dockShell}>
         <DockviewReact components={components} onReady={onReady} theme={theme} defaultTabComponent={PanelTab}
           rightHeaderActionsComponent={HeaderActions} popoutUrl="/popout.html"
           floatingGroupDragHandle="titlebar" floatingGroupBounds="boundedWithinViewport"/>

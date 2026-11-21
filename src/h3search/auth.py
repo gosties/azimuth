@@ -243,6 +243,7 @@ class Accounts:
             conn.execute("UPDATE accounts SET role=?,active=? WHERE id=?", (role, int(active), account_id))
             if not active:
                 conn.execute("DELETE FROM login_sessions WHERE account_id=?", (account_id,))
+                conn.execute("DELETE FROM gis_credentials WHERE account_id=?", (account_id,))
             return self._account(conn, account_id)
 
     def reset_password(self, token, account_id, password):
