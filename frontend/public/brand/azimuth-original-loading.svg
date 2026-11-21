@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" class="azimuth-loading-mark" role="img" aria-label="Azimuth loading hexagon">
+    <style>@media (prefers-reduced-motion: no-preference) { .azimuth-loading-wedge { transform-origin: 24px 24px; animation: sweep 2.8s linear 160ms infinite; } } @keyframes sweep { to { transform: rotate(1turn); } }</style><defs><clipPath id="azimuth-loading-clip"><path d="M24 1 45 12.5v23L24 47 3 35V12.5Z"/></clipPath></defs>
+    <g clip-path="url(#azimuth-loading-clip)">
+      <path d="M0 0h48v48H0Z" fill="#e89d45"/>
+      <path d="M45 12.5v23L24 47 3 35Z" fill="#faf7ef"/>
+      <path class="azimuth-loading-wedge" d="M45 12.5 3 35l10.5 6Z" fill="#171716"/>
+    </g>
+  </svg>

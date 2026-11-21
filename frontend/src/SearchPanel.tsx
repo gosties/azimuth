@@ -1,6 +1,7 @@
 import { useTransientMessage } from './useTransientMessage'
 import { AdvancedTemporal } from './AdvancedTemporal'
 import './SearchExtensions.css'
+import './V2View.css'
 import { useEffect, useId, useState } from 'react'
 import { ArrowRight, Bookmark, ChevronDown, Circle, Clipboard, Crosshair, Link2, LocateFixed, Search, X } from 'lucide-react'
 import { api, errorText, type Center, type CoordinateInfo } from './api'
@@ -56,7 +57,7 @@ function Conversions({ coordinate, pick }: Pick<Draft, 'coordinate' | 'pick'>) {
 export function SearchPanel() {
   const { draft, updateDraft, pickCenter, setPickCenter, drawCircle, setDrawCircle, datasets, selected, submitSearch,
     searchError, searching, searchSources, session, query, clearSearch, cancelSearch, searchElapsed, config, submitCenters,
-    filteringTime, savedSearches, openSavedSearches } = useWorkspace()
+    filteringTime, savedSearches, openSavedSearches, viewMode } = useWorkspace()
   const [source, setSource] = useState<'coordinate' | 'csv'>('coordinate')
   const [centers, setCenters] = useState<Center[] | null>(null)
   const [feedback, setFeedback, feedbackProps] = useTransientMessage('')
@@ -91,11 +92,12 @@ export function SearchPanel() {
     }
   }
 
-  return <section className="panel-pad search-panel">
+  return <section className={'panel-pad search-panel' + (viewMode === 'v2' ? ' v2-search-panel' : '')}>
     <div className="section-heading"><div><h2>Radius search</h2><p>Find records around one or more locations.</p></div><span className="heading-icon"><Crosshair size={19}/></span></div>
     <form onSubmit={event => { event.preventDefault(); setFeedback(''); setCopied(''); if (source === 'csv') { if (centers) submitCenters(centers, draft, selected) } else submitSearch(draft, selected) }} noValidate>
       <div className="search-fields">
         <div className="search-source" role="group" aria-label="Search locations">{(['coordinate', 'csv'] as const).map(mode => <button type="button" className="button secondary" key={mode} aria-pressed={source === mode} onClick={() => { if (mode === source) return; setSource(mode); setCenters(null); setPickCenter(false); setDrawCircle(false) }}>{mode === 'coordinate' ? 'Single point' : 'Bulk search'}</button>)}</div>
+        <div className="search-primary-fields">
         {source === 'csv' ? <CsvLocations config={config} onReady={setCenters}/> : <>
         <div data-tour="center">
           <label>Search center<input name="coordinate" placeholder="17SPU8226091682" aria-describedby="coordinate-hint" maxLength={256} autoComplete="off" spellCheck={false} value={draft.coordinate} onChange={event => updateDraft({coordinate: event.target.value})}/></label>
@@ -108,6 +110,9 @@ export function SearchPanel() {
             <option value="m">Meters</option><option value="km">Kilometers</option><option value="mi">Miles</option><option value="nmi">Nautical miles</option>
           </select></label>
         </div>
+        </div>
+        <details className="search-advanced" open={viewMode === 'v2' ? undefined : true}>
+          <summary>Advanced options <ChevronDown size={14}/></summary>
         <LookupModeSelect config={config} value={draft.lookup_mode} onChange={lookup_mode => updateDraft({ lookup_mode })}/>
         {source === 'coordinate' && <>
         <Conversions coordinate={draft.coordinate} pick={draft.pick}/>
@@ -121,27 +126,6 @@ export function SearchPanel() {
         </div>
         </>}
         <AdvancedTemporal/>
-        <div className="search-secondary">
-          {searching ? <button className="button subtle" type="button" onClick={cancelSearch}>Cancel search</button> : <>
-            <button className="button subtle" type="button" onClick={() => { clearSearch(); updateDraft({coordinate: ''}); setFeedback(''); setCopied('') }}><X size={14}/> Clear</button>
-            <button className="button subtle" type="button" title="Copy search settings and shared dataset selection" disabled={source === 'csv' || !pickedCenter(draft) && !draft.coordinate.trim()} onClick={event => {
-              const doc = event.currentTarget.ownerDocument
-              setFeedback('')
-              try {
-                parseRadius(draft)
-                const link = searchLink(draft, doc.location.origin, sharedScope, hasLocalScope)
-                void copyText(link, doc).then(() => setCopied(hasLocalScope ? sharedScope.length ? 'Search link copied. Private local datasets were omitted.' : 'Settings link copied. Choose datasets after opening; private local datasets were omitted.' : 'Search link copied.')).catch(error => { setCopied(''); setFeedback(errorText(error)) })
-              } catch (error) { setCopied(''); setFeedback(errorText(error)) }
-            }}><Link2 size={14}/> Copy link</button>
-            {openSavedSearches && <button className="button subtle" type="button" onClick={openSavedSearches}><Bookmark size={14}/> Saved</button>}
-          </>}
-        </div>
-        {(hasLocalScope || openedWithoutLocal) && <p className="quiet">Links include search settings and shared datasets. Private local datasets are omitted.{sharedScope.length === 0 ? ' Choose datasets after opening the link to run a search.' : ''}</p>}
-        {feedback && <p className="quiet" role="status" {...feedbackProps}>{feedback}</p>}
-        {copied && <p className="quiet" role="status" {...copiedProps}>{copied}</p>}
-        {session && query && <div className="search-summary" role="status">
-          <span><strong>{number.format(session.total)}</strong> {session.total === 1 ? 'match' : 'matches'} · {distance(query.radius_m)} · {session.id.startsWith('local-search:') ? 'Local catalogs' : session.id.startsWith('federated:') ? 'Shared + local catalogs' : lookupModeLabel(session.lookup_mode ?? query.lookup_mode, config ?? null)}{searchElapsed !== null && ' · ' + (searchElapsed / 1000).toFixed(2) + ' s'}</span>
-        </div>}
         <div className="search-save-actions">
           <details className="search-save">
             <summary><Bookmark size={14}/> Save search <ChevronDown size={14}/></summary>
@@ -165,6 +149,28 @@ export function SearchPanel() {
             {savedSearches && <SavedLocationBrowser saved={savedSearches}/>}
           </details>
         </div>
+        </details>
+        <div className="search-secondary">
+          {searching ? <button className="button subtle" type="button" onClick={cancelSearch}>Cancel search</button> : <>
+            <button className="button subtle" type="button" onClick={() => { clearSearch(); updateDraft({coordinate: ''}); setFeedback(''); setCopied('') }}><X size={14}/> Clear</button>
+            <button className="button subtle" type="button" title="Copy search settings and shared dataset selection" disabled={source === 'csv' || !pickedCenter(draft) && !draft.coordinate.trim()} onClick={event => {
+              const doc = event.currentTarget.ownerDocument
+              setFeedback('')
+              try {
+                parseRadius(draft)
+                const link = searchLink(draft, doc.location.origin, sharedScope, hasLocalScope)
+                void copyText(link, doc).then(() => setCopied(hasLocalScope ? sharedScope.length ? 'Search link copied. Private local datasets were omitted.' : 'Settings link copied. Choose datasets after opening; private local datasets were omitted.' : 'Search link copied.')).catch(error => { setCopied(''); setFeedback(errorText(error)) })
+              } catch (error) { setCopied(''); setFeedback(errorText(error)) }
+            }}><Link2 size={14}/> Copy link</button>
+            {openSavedSearches && <button className="button subtle" type="button" onClick={openSavedSearches}><Bookmark size={14}/> Saved</button>}
+          </>}
+        </div>
+        {(hasLocalScope || openedWithoutLocal) && <p className="quiet">Links include search settings and shared datasets. Private local datasets are omitted.{sharedScope.length === 0 ? ' Choose datasets after opening the link to run a search.' : ''}</p>}
+        {feedback && <p className="quiet" role="status" {...feedbackProps}>{feedback}</p>}
+        {copied && <p className="quiet" role="status" {...copiedProps}>{copied}</p>}
+        {session && query && <div className="search-summary" role="status">
+          <span><strong>{number.format(session.total)}</strong> {session.total === 1 ? 'match' : 'matches'} · {distance(query.radius_m)} · {session.id.startsWith('local-search:') ? 'Local catalogs' : session.id.startsWith('federated:') ? 'Shared + local catalogs' : lookupModeLabel(session.lookup_mode ?? query.lookup_mode, config ?? null)}{searchElapsed !== null && ' · ' + (searchElapsed / 1000).toFixed(2) + ' s'}</span>
+        </div>}
       </div>
       <div className="search-actions">
         {searchError && <p className="inline-error" role="alert">{searchError}</p>}

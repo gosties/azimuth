@@ -75,10 +75,8 @@ p, h1, h2, h3, ul, dl, dd { margin: 0; }
 svg { flex-shrink: 0; vertical-align: middle; }
 .app { height: 100%; min-height: 0; display: flex; flex-direction: column; }
 .app-header { height: 62px; flex: 0 0 auto; background: var(--header); color: var(--header-text); display: flex; align-items: center; justify-content: space-between; padding: 0 17px; gap: 12px; }
-.app-identity { display: grid; grid-template-columns: auto auto auto; align-items: center; gap: 9px; border: 0; border-radius: 5px; background: transparent; color: inherit; padding: 0; font-weight: 400; text-align: left; text-decoration: none; --azimuth-mark-wedge: var(--header); }
+.app-identity { display: block; border: 0; border-radius: 5px; background: transparent; color: inherit; padding: 0; text-decoration: none; }
 .app-identity:hover { background: #ffffff09; }
-.app-identity .azimuth-wordmark { width: 113px; }
-.azimuth-subtitle { color: #bfbab0; font-size: 11px; white-space: nowrap; }
 .app-actions { display: flex; align-items: center; gap: 7px; }
 .header-button { display: flex; align-items: center; justify-content: center; gap: 7px; height: var(--control-height); border: 1px solid var(--header-border); border-radius: 6px; padding: 0 10px; background: #ffffff09; color: var(--header-text); white-space: nowrap; }
 .header-button:hover { background: #ffffff18; }
@@ -521,7 +519,6 @@ textarea { resize: vertical; }
 .auth-tools { position: fixed; top: 15px; right: 15px; }
 .auth-card { background: var(--surface); border: 1px solid var(--strong-line); border-radius: 10px; padding: 24px; width: min(365px, 100%); box-shadow: var(--shadow); }
 .auth-brand { display: flex; align-items: center; gap: 11px; margin-bottom: 17px; --azimuth-mark-edge: #171716; }
-.auth-brand .azimuth-wordmark { width: 155px; }
 :root[data-theme="dark"] .auth-brand { --azimuth-mark-edge: transparent; --azimuth-mark-wedge: var(--surface); }
 .auth-heading, .auth-status { display: flex; align-items: center; gap: 7px; color: var(--muted); }
 .auth-heading h2 { font-size: 13px; }
@@ -555,18 +552,10 @@ textarea { resize: vertical; }
 .column-controls > button { justify-self: start; }
 .column-options { display: flex; flex-wrap: wrap; gap: 5px 12px; max-height: 120px; overflow: auto; }
 .column-options label { flex-direction: row; align-items: center; max-width: 100%; overflow-wrap: anywhere; }
-@media (max-width: 760px) {
-  .app-identity { grid-template-columns: auto auto; gap: 2px 7px; }
-  .app-identity .azimuth-mark { grid-row: span 2; }
-  .azimuth-subtitle { font-size: 10px; line-height: 1; }
-}
 @media (max-width: 520px) {
   .app-header { gap: 5px; }
   .header-button.compact, .header-button.workspace-toggle { width: min(34px, var(--control-height)); padding: 0; }
   .app-actions { gap: 4px; }
-  .app-identity .azimuth-wordmark { width: 96px; }
-  .app-identity .azimuth-mark { width: 28px; height: 28px; }
-  .azimuth-subtitle { font-size: 8px; }
   .service-status { font-size: 10px; }
   .service-status strong { font-size: 12px; }
   .header-button > span, .workspace-toggle > svg:last-child { display: none; }
@@ -576,9 +565,6 @@ textarea { resize: vertical; }
   .service-status > span, .service-status i { display: none; }
 }
 @media (max-width: 385px) {
-  .app-identity { column-gap: 6px; }
-  .app-identity .azimuth-mark { width: 25px; height: 25px; }
-  .app-identity .azimuth-wordmark { width: 82px; }
   .app-actions { gap: 3px; }
   .header-button.compact, .header-button.workspace-toggle { width: min(28px, var(--control-height)); }
   .service-status { max-width: 60px; }
@@ -611,3 +597,23 @@ textarea { resize: vertical; }
 @media (max-width: 600px) { .exports-page { padding: 14px; } }
 
 .export-staged { max-width: 280px; margin: 5px 0 0; font-size: var(--detail-size); }
+
+/* Keep the complete lockup readable while header controls wrap on small screens. */
+.geosearch-brand { display: block; width: 370px; max-width: 100%; height: auto; --brand-accent: #e89d45; --brand-metal-top: #575650; --brand-metal-mid: #272723; --brand-metal-bottom: #10100f; --brand-soft: var(--muted); }
+.app-header .geosearch-brand { --brand-soft: #c0bcb4; --brand-metal-top: #f6f2e9; --brand-metal-mid: #b9b4a9; --brand-metal-bottom: #6d6b64; }
+:root[data-theme="dark"] .geosearch-brand { --brand-metal-top: #f6f2e9; --brand-metal-mid: #b9b4a9; --brand-metal-bottom: #6d6b64; }
+.app-header { min-height: 62px; height: auto; flex-wrap: wrap; }
+.app-header h1 { flex: 0 0 auto; max-width: 100%; }
+.app-actions { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+.auth-brand { display: block; }
+.auth-brand .geosearch-brand { width: 100%; }
+@media (max-width: 1100px) {
+  .app-header { padding-block: 4px; gap: 4px 10px; }
+  .app-actions { flex: 1 1 450px; }
+}
+@media (max-width: 690px) {
+  .app-header { justify-content: center; }
+  .app-actions { flex-basis: 100%; justify-content: center; padding-bottom: 3px; }
+  .application-view { max-width: 150px; }
+  .service-status { display: none; }
+}

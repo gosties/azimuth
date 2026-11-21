@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 55 52" width="110" height="104" role="img" aria-labelledby="azimuth-directional-a-title azimuth-directional-a-desc" class="azimuth-directional-a">
+  <title id="azimuth-directional-a-title">Azimuth directional A</title>
+  <desc id="azimuth-directional-a-desc">A capital A leaning northeast, with an extended sharp tip, open triangular counter, and amber ascending edge.</desc>
+  <style>
+    svg.azimuth-directional-a:root { color: #282724; }
+    @media (prefers-color-scheme: dark) {
+      svg.azimuth-directional-a:root { color: #f0ede6; }
+    }
+  </style>
+  <path d="M0 48 51 0 40 48H30L32 36H19L8 48ZM25 29H34L37 16Z" fill="var(--azimuth-a-ink, currentColor)" fill-rule="evenodd"/>
+  <path d="M0 48 51 0 46.5 6.4 3.8 48Z" fill="var(--azimuth-a-accent, #e89d45)"/>
+</svg>

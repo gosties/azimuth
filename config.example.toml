@@ -47,6 +47,7 @@ session_cleanup_interval_sec = 60
 session_cleanup_batch_size = 1000
 auth_session_ttl_sec = 28800
 auth_origins = []                      # exact browser origins, for example ["https://azimuth.example"]
+wfs_client_origins = []                # exact HTTPS origins of web GIS portals allowed to read WFS
 auth_cookie_secure = true             # set false only for an HTTP service
 max_radius_m = 20015087.0              # meters
 max_search_centers = 5000             # uploaded or explicit centers sharing one radius

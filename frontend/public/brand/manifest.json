@@ -1,0 +1,38 @@
+{
+  "primary": "h3-geosearch-azimuth-inline.svg",
+  "originals": [
+    "azimuth-original-primary.svg",
+    "azimuth-original-loading.svg"
+  ],
+  "optional_variants": [
+    "azimuth-angle-matched-a.svg",
+    "azimuth-clear-hex.svg",
+    "azimuth-directional-a.svg",
+    "azimuth-directional-wordmark.svg",
+    "azimuth-pointer-hex.svg",
+    "azimuth-upper-edge-a.svg",
+    "h3-azimuth-clear-lockup.svg",
+    "h3-azimuth-pointer-lockup.svg",
+    "h3-geosearch-azimuth-refined.svg"
+  ],
+  "previews": [
+    "azimuth-theme-preview.png",
+    "combined-review.png",
+    "refined-review.png",
+    "inline-preview.png"
+  ],
+  "usage": "Use GeoSearchBrand inline for application branding. Preserve the primary hexagon and loading geometry. SVGs are canonical; PNGs are previews. Give repeated inline SVG definitions unique IDs. Standalone img documents do not inherit host CSS variables.",
+  "theme_variables": [
+    "--brand-accent",
+    "--brand-ink",
+    "--brand-soft",
+    "--brand-metal-top",
+    "--brand-metal-mid",
+    "--brand-metal-bottom",
+    "--brand-highlight",
+    "--brand-shade",
+    "--azimuth-a-ink",
+    "--azimuth-a-accent"
+  ],
+  "directional_a_leading_edge_degrees": 42.1376
+}

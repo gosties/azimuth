@@ -1,4 +1,5 @@
 import { ColumnChoices } from './ColumnChoices'
+import { GisCredentialSettings } from './GisSettings'
 import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useState } from 'react'
 import { Columns3, KeyRound, RefreshCw, RotateCcw, UserRound, X } from 'lucide-react'
@@ -126,6 +127,7 @@ export function MyAccountPanel() {
     <div className="section-heading"><div><h2>My account</h2><p>Your account and saved table columns.</p></div><span className="heading-icon"><UserRound size={17}/></span></div>
     <dl className="my-account-identity"><div><dt>Email</dt><dd>{user.email}</dd></div><div><dt>Role</dt><dd>{roleLabels[user.role]}</dd></div></dl>
     <PasswordSettings/>
+    <GisCredentialSettings/>
     <div className="my-account-preferences-heading"><h3>Saved column choices</h3><button className="icon-button" aria-label="Refresh saved column choices" disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={14}/></button></div>
     <p className="quiet">Column choices apply to your search result tables.</p>
     {error && <p className="inline-error" role="alert">{error}</p>}

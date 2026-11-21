@@ -2,6 +2,7 @@ import { useTransientMessage } from './useTransientMessage'
 import { useEffect, useState } from 'react'
 import { ExternalLink, Link, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { AccountsPanel } from './AccountsPanel'
+import { WfsSettingsPanel } from './GisSettings'
 import { CatalogAdminPanel } from './DatasetsPanel'
 import { ExportSettingsPanel } from './ExportSettingsPanel'
 import { api, errorText, type Basemap, type Category, type MapSettings, type ReleaseNote } from './api'
@@ -10,7 +11,7 @@ import { canManageDatasets, useWorkspace } from './workspace'
 import './AdminPanel.css'
 import { FeedbackPanel, AnnouncementsAdmin } from './Community'
 
-type Tab = 'Catalog' | 'Categories' | 'Users' | 'Maps' | 'Exports' | 'Infrastructure' | 'Release notes' | 'Feedback inbox' | 'Announcements'
+type Tab = 'Catalog' | 'Categories' | 'Users' | 'Maps' | 'Exports' | 'Infrastructure' | 'Release notes' | 'Feedback inbox' | 'Announcements' | 'WFS'
 const tabId = (tab: Tab) => tab.replace(/ /g, '-')
 
 const infrastructureDocument = '/api/admin/infrastructure/document'
@@ -28,7 +29,7 @@ export function AdminPanel({ onMapsChanged, initialTab = 'Catalog' }: {
   const { user, reload, config } = useWorkspace()
   const [requestedTab, setTab] = useState<Tab>(initialTab)
   const infrastructureAvailable = config?.infrastructure_document_available === true
-  const tabs: Tab[] = ['Catalog', 'Categories', ...(user.role === 'superadmin' ? ['Users' as const, 'Feedback inbox' as const, 'Announcements' as const] : []), 'Maps', 'Exports',
+  const tabs: Tab[] = ['Catalog', 'Categories', ...(user.role === 'superadmin' ? ['Users' as const, 'Feedback inbox' as const, 'Announcements' as const, 'WFS' as const] : []), 'Maps', 'Exports',
     ...(infrastructureAvailable ? ['Infrastructure' as const] : []), 'Release notes']
   const tab = tabs.includes(requestedTab) ? requestedTab : 'Catalog'
   const [categories, setCategories] = useState<Category[]>([])
@@ -53,6 +54,7 @@ export function AdminPanel({ onMapsChanged, initialTab = 'Catalog' }: {
       {tab === 'Catalog' && <CatalogAdminPanel categories={categories}/>}
       {tab === 'Categories' && <CategoriesPanel categories={categories} loading={categoriesLoading} editable={user.role === 'superadmin'} onChanged={items => { setCategories(items); reload() }}/>}
       {tab === 'Users' && user.role === 'superadmin' && <AccountsPanel/>}
+      {tab === 'WFS' && user.role === 'superadmin' && <WfsSettingsPanel/>}
       {tab === 'Feedback inbox' && user.role === 'superadmin' && <FeedbackPanel inbox/>}
       {tab === 'Announcements' && user.role === 'superadmin' && <AnnouncementsAdmin/>}
       {tab === 'Maps' && <MapsPanel onChanged={onMapsChanged}/>}

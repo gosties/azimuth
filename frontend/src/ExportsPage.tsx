@@ -1,6 +1,6 @@
+import { GeoSearchBrand } from './GeoSearchBrand'
 import { ArrowLeft, LogOut, Moon, Sun } from 'lucide-react'
 import { type AuthSession } from './api'
-import { AzimuthMark, AzimuthWordmark } from './AzimuthMark'
 import { ExportHistory } from './ExportHistory'
 import { NotificationsBell } from './NotificationsBell'
 
@@ -9,7 +9,7 @@ export function ExportsPage({ auth, dark, toggleTheme, logout, accountError }: {
 }) {
   return <main className="app">
     <header className="app-header">
-      <h1><a href="/" className="app-identity" aria-label="Azimuth workspace"><AzimuthMark/><AzimuthWordmark/></a></h1>
+      <h1><a href="/" className="app-identity" aria-label="H³ GeoSearch · Azimuth Platform workspace"><GeoSearchBrand/></a></h1>
       <div className="app-actions">
         <NotificationsBell/>
         <button className="header-button compact" aria-label={dark ? 'Use light theme' : 'Use dark theme'} onClick={toggleTheme}>{dark ? <Sun size={18}/> : <Moon size={17}/>}</button>

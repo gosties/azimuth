@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 272 52" width="544" height="104" role="img" aria-labelledby="azimuth-directional-wordmark-title azimuth-directional-wordmark-desc" class="azimuth-directional-wordmark">
+  <title id="azimuth-directional-wordmark-title">Azimuth directional wordmark</title>
+  <desc id="azimuth-directional-wordmark-desc">Azimuth in solid geometric lettering, beginning with a northeast leaning A with an extended sharp tip and amber ascending edge.</desc>
+  <style>
+    svg.azimuth-directional-wordmark:root { color: #282724; }
+    @media (prefers-color-scheme: dark) {
+      svg.azimuth-directional-wordmark:root { color: #f0ede6; }
+    }
+  </style>
+  <g fill="var(--azimuth-a-ink, currentColor)">
+    <path d="M0 48 51 0 40 48H30L32 36H19L8 48ZM25 29H34L37 16Z" fill-rule="evenodd"/>
+    <g transform="translate(8 8)">
+      <path d="M50 0h32.5v8L63.3 31H82.5v9H50v-8l19-23H50Z"/>
+      <path d="M87 0h10v40H87Z"/>
+      <path d="M102.5 0h9.3l12.5 17L137 0h9.2v40h-10V19l-11.9 15.7L112.5 19v21h-10Z"/>
+      <path d="M152.5 0h10v24.5c0 4.8 1.7 6.4 6.2 6.4h2.5c4.4 0 6-1.6 6-6.4V0h10v25.6c0 9.7-4.6 14.4-13.6 14.4h-7.5c-9 0-13.6-4.7-13.6-14.4Z"/>
+      <path d="M191.5 0h30.7v9h-10.3v31h-10V9h-10.4Z"/>
+      <path d="M226.5 0h10v15h13.5V0h10v40h-10V24h-13.5v16h-10Z"/>
+    </g>
+  </g>
+  <path d="M0 48 51 0 46.5 6.4 3.8 48Z" fill="var(--azimuth-a-accent, #e89d45)"/>
+</svg>
